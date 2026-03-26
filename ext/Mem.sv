@@ -2,6 +2,7 @@ module \cpu::Mem (
     input  wire             clock,
     input  wire     [31:0]  addr,
     input  wire     [31:0]  data_in,
+    input  wire             write,
     output reg      [31:0]  data_out
 );
     reg [31:0] mem[1024];
@@ -11,7 +12,10 @@ module \cpu::Mem (
     end
 
     always @(posedge clock) begin
-        mem[addr[11:2]] <= data_in;
+        if (write) begin
+            $display("Mem write");
+            mem[addr[11:2]] <= data_in;
+        end
     end
 endmodule
 

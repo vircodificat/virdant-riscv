@@ -8,8 +8,6 @@ mod Cpu {
     incoming clock : Clock;
     incoming reset : Bit;
 
-    incoming cycle : Word[32];
-
     mod ifetch of ifetch::Ifetch;
     mod rf of rf::Rf;
     mod alu of alu::Alu;
@@ -22,7 +20,19 @@ mod Cpu {
     mem.clock := clock;
 
     ifetch.reset := reset;
-    ifetch.cycle := cycle;
+    ifetch.set_pc := control.set_pc;
+
+    ifetch.next_pc :=
+        if ifetch.opcode == 99 { // BRANCH
+            ifetch.pc + extend.out
+        } else if ifetch.opcode == 103 { // JALR
+            ifetch.pc + extend.out
+        } else if ifetch.opcode == 111 { // JAL
+            alu.z
+        } else {
+            0w32
+        };
+
 
     rf.rd  := ifetch.rd;
     rf.rs1 := ifetch.rs1;
@@ -38,7 +48,9 @@ mod Cpu {
         rf.rs2_out
     };
 
-    alu.op := 0w5;
+    alu.funct3 := ifetch.funct3;
+    alu.funct7 := ifetch.funct7;
+    alu.is_op  := control.alu_is_op;
 
     mem.addr := alu.z;
     mem.data_in := zext(ifetch.rs1);
@@ -48,6 +60,7 @@ mod Cpu {
         alu.z
     };
     rf.write   := control.rf_write;
+    mem.write   := control.mem_write;
 }
 
 ext mod Mem {
@@ -55,4 +68,5 @@ ext mod Mem {
     incoming addr     : Word[32];
     outgoing data_out : Word[32];
     incoming data_in  : Word[32];
+    incoming write  : Bit;
 }

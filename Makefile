@@ -1,5 +1,7 @@
 VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
-build/sim: sim.cpp
+VIR_SOURCES := $(wildcard src/*.vir)
+
+build/sim: sim.cpp $(VIR_SOURCES)
 	vir build
 	cp ext/* build/
 	verilator \
@@ -19,7 +21,10 @@ build/sim: sim.cpp
 		-O2 \
 		-o build/sim
 
-out.vcd: build/sim
+rom.hex: main.s
+	./asm2hex.sh main.s
+
+out.vcd: build/sim rom.hex
 	./build/sim
 
 wave: out.vcd rom.hex
@@ -27,3 +32,5 @@ wave: out.vcd rom.hex
 
 clean:
 	rm -rf build/
+	rm -f rom.hex
+	rm -f out.vcd

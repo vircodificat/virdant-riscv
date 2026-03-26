@@ -2,15 +2,31 @@ mod Control {
     incoming opcode : Word[7];
 
     outgoing rf_write : Bit;
+    outgoing mem_write : Bit;
     outgoing wb_mem : Bit;
     outgoing alu_source_imm : Bit;
+    outgoing alu_is_op : Bit;
+    outgoing set_pc : Bit;
+
+    mem_write :=
+        if opcode == 35 { // STORE
+            true
+        } else {
+            false
+        };
 
     rf_write :=
         if opcode == 19 { // OP-IMM
             true
-        } else if opcode == 52 { // OP
+        } else if opcode == 51 { // OP
             true
         } else if opcode == 55 { // LUI
+            true
+        } else if opcode == 3 { // LOAD
+            true
+        } else if opcode == 103 { // JALR
+            true
+        } else if opcode == 111 { // JAL
             true
         } else {
             false
@@ -27,6 +43,26 @@ mod Control {
         if opcode == 19 { // OP-IMM
             true
         } else if opcode == 55 { // LUI
+            true
+        } else {
+            false
+        };
+
+    alu_is_op :=
+        if opcode == 19 { // OP-IMM
+            true
+        } else if opcode == 51 { // OP
+            true
+        } else {
+            false
+        };
+
+    set_pc :=
+        if opcode == 99 { // BRANCH
+            true
+        } else if opcode == 103 { // JALR
+            true
+        } else if opcode == 111 { // JAL
             true
         } else {
             false

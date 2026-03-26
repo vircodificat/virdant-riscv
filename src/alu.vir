@@ -3,7 +3,57 @@ mod Alu {
     incoming b : Word[32];
     outgoing z : Word[32];
 
-    incoming op : Word[5];
+    incoming is_op : Bit;
+    incoming funct3 : Word[3];
+    incoming funct7 : Word[7];
 
-    z := a + b;
+    wire sum : Word[32];
+    sum := a + b;
+
+    z :=
+        if is_op {
+            if funct3 == 0 {
+                if funct7[5] {
+                    a - b
+                } else {
+                    sum
+                }
+            } else if funct3 == 1 { // SLL
+                0
+            } else if funct3 == 2 { // SLT
+                0
+            } else if funct3 == 3 { // SLTU
+                0
+            } else if funct3 == 4 { // XOR
+                a ^^ b
+            } else if funct3 == 5 { // SRL/A
+                if funct7[5] { // SRA
+                    0
+                } else { // SRL
+                    0
+                }
+            } else if funct3 == 6 { // OR
+                a || b
+            } else if funct3 == 7 { // AND
+                a && b
+            } else {
+                0
+            }
+        } else {
+            if funct3 == 0w3 { // BEQ
+                zext(a == b)
+            } else if funct3 == 1w3 { // BNE
+                zext(a != b)
+            } else if funct3 == 4w3 { // BLT
+                0
+            } else if funct3 == 5w3 { // BGE
+                0
+            } else if funct3 == 6w3 { // BLTU
+                zext(a < b)
+            } else if funct3 == 7w3 { // BGEU
+                zext(a >= b)
+            } else {
+                0
+            }
+        };
 }
