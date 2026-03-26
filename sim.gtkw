@@ -1,0 +1,99 @@
+[*]
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Thu Mar 26 08:52:51 2026
+[*]
+[dumpfile] "out.vcd"
+[dumpfile_mtime] "Thu Mar 26 08:52:34 2026"
+[dumpfile_size] 24901
+[savefile] "sim.gtkw"
+[timestart] 0
+[size] 1440 881
+[pos] -27 -24
+*-6.000000 5 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.Top.
+[treeopen] TOP.Top.cpu.
+[sst_width] 278
+[signals_width] 338
+[sst_expanded] 1
+[sst_vpaned_height] 255
+@28
+TOP.clock
+TOP.reset
+@200
+-
+@22
+TOP.Top.cpu.ifetch.pc[31:0]
+TOP.Top.cpu.ifetch.\instr_mem.instr[31:0]
+TOP.Top.cpu.\extend.out[31:0]
+@200
+-
+@28
+TOP.Top.cpu.\control.rf_write
+TOP.Top.cpu.\control.wb_mem
+TOP.Top.cpu.\control.alu_source_imm
+@200
+-
+@22
+TOP.Top.cpu.alu.a[31:0]
+TOP.Top.cpu.alu.b[31:0]
+TOP.Top.cpu.alu.op[4:0]
+@c00022
+TOP.Top.cpu.alu.z[31:0]
+@28
+(0)TOP.Top.cpu.alu.z[31:0]
+(1)TOP.Top.cpu.alu.z[31:0]
+(2)TOP.Top.cpu.alu.z[31:0]
+(3)TOP.Top.cpu.alu.z[31:0]
+(4)TOP.Top.cpu.alu.z[31:0]
+(5)TOP.Top.cpu.alu.z[31:0]
+(6)TOP.Top.cpu.alu.z[31:0]
+(7)TOP.Top.cpu.alu.z[31:0]
+(8)TOP.Top.cpu.alu.z[31:0]
+(9)TOP.Top.cpu.alu.z[31:0]
+(10)TOP.Top.cpu.alu.z[31:0]
+(11)TOP.Top.cpu.alu.z[31:0]
+(12)TOP.Top.cpu.alu.z[31:0]
+(13)TOP.Top.cpu.alu.z[31:0]
+(14)TOP.Top.cpu.alu.z[31:0]
+(15)TOP.Top.cpu.alu.z[31:0]
+(16)TOP.Top.cpu.alu.z[31:0]
+(17)TOP.Top.cpu.alu.z[31:0]
+(18)TOP.Top.cpu.alu.z[31:0]
+(19)TOP.Top.cpu.alu.z[31:0]
+(20)TOP.Top.cpu.alu.z[31:0]
+(21)TOP.Top.cpu.alu.z[31:0]
+(22)TOP.Top.cpu.alu.z[31:0]
+(23)TOP.Top.cpu.alu.z[31:0]
+(24)TOP.Top.cpu.alu.z[31:0]
+(25)TOP.Top.cpu.alu.z[31:0]
+(26)TOP.Top.cpu.alu.z[31:0]
+(27)TOP.Top.cpu.alu.z[31:0]
+(28)TOP.Top.cpu.alu.z[31:0]
+(29)TOP.Top.cpu.alu.z[31:0]
+(30)TOP.Top.cpu.alu.z[31:0]
+(31)TOP.Top.cpu.alu.z[31:0]
+@1401200
+-group_end
+@200
+-
+@22
+TOP.Top.cpu.ifetch.opcode[6:0]
+TOP.Top.cpu.ifetch.rd[4:0]
+TOP.Top.cpu.ifetch.rs1[4:0]
+TOP.Top.cpu.ifetch.rs2[4:0]
+@200
+-
+@28
+TOP.Top.cpu.rf.write
+@22
+TOP.Top.cpu.rf.rd_in[31:0]
+TOP.Top.cpu.rf.x1[31:0]
+TOP.Top.cpu.rf.x2[31:0]
+TOP.Top.cpu.rf.x3[31:0]
+TOP.Top.cpu.rf.x4[31:0]
+TOP.Top.cpu.rf.x5[31:0]
+@23
+TOP.Top.cpu.rf.x6[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

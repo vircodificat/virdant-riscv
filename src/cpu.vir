@@ -32,10 +32,10 @@ mod Cpu {
     control.opcode  := ifetch.opcode;
 
     alu.a := rf.rs1_out;
-    alu.b := if true {
-        rf.rs2_out
-    } else {
+    alu.b := if control.alu_source_imm {
         extend.out
+    } else {
+        rf.rs2_out
     };
 
     alu.op := 0w5;

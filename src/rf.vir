@@ -76,8 +76,7 @@ mod Rf {
     x31 <= if write && (rd == 31w5) { rd_in } else { x31 };
 
     rs1_out :=
-        if rs1 == 1w5 { x1 }
-        else if rs1 == 1w5  { x1 }
+             if rs1 == 1w5  { x1 }
         else if rs1 == 2w5  { x2 }
         else if rs1 == 3w5  { x3 }
         else if rs1 == 4w5  { x4 }
@@ -111,8 +110,7 @@ mod Rf {
         else { 0 };
 
     rs2_out :=
-        if rs2 == 1w5 { x1 }
-        else if rs2 == 1w5  { x1 }
+             if rs2 == 1w5  { x1 }
         else if rs2 == 2w5  { x2 }
         else if rs2 == 3w5  { x3 }
         else if rs2 == 4w5  { x4 }

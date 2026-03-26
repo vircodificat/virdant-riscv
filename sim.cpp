@@ -1,4 +1,4 @@
-#include "Vtop.h"
+#include "VTop.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -8,39 +8,47 @@ double sc_time_stamp() {
     return main_time;
 }
 
-void tick(Vtop *top) {
+void tick(VTop *top, VerilatedVcdC* tfp) {
     top->clock = 1;
     top->eval();
+    tfp->dump(main_time);
+    main_time += 5;
+
     top->clock = 0;
     top->eval();
+    tfp->dump(main_time);
+    main_time += 5;
+}
+
+void reset(VTop *top, VerilatedVcdC* tfp) {
+    top->reset = 1;
+    top->eval();
+    tick(top, tfp);
+
+    top->reset = 0;
+    top->eval();
+    tick(top, tfp);
 }
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
-    Vtop* top = new Vtop;
+    VTop* top = new VTop;
 
     Verilated::traceEverOn(true);
     VerilatedVcdC* tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
     tfp->open("out.vcd");
 
-    top->reset = 0;
     top->reset = 1;
+    top->clock = 1;
     top->eval();
+    tfp->dump(main_time);
 
-    tick(top);
-    tick(top);
-    tick(top);
-    tick(top);
-    tick(top);
-    tick(top);
-    tick(top);
-    tick(top);
+    reset(top, tfp);
 
     for (int i = 0; i < 200; i++) {
-        tfp->dump(main_time);
-        main_time++;
+        tick(top, tfp);
     }
 
     tfp->close();
