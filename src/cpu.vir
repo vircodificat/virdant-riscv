@@ -28,9 +28,9 @@ mod Cpu {
         if ifetch.opcode == 99 { // BRANCH
             ifetch.pc + extend.out
         } else if ifetch.opcode == 103 { // JALR
-            ifetch.pc + extend.out
+            ifetch.pc + alu.z
         } else if ifetch.opcode == 111 { // JAL
-            alu.z
+           ifetch.pc + extend.out
         } else {
             0w32
         };

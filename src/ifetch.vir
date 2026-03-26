@@ -39,6 +39,10 @@ mod Ifetch {
     rs2    := instr_mem.instr[25..20];
     funct3 := instr_mem.instr[15..12];
     funct7 := instr_mem.instr[32..25];
+
+//    on clock {
+//        assert(pc_reg[0] == false);
+//    }
 }
 
 ext mod Rom {
