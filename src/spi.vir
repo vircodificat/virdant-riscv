@@ -1,0 +1,158 @@
+mod SpiFlash {
+    incoming clock : Clock;
+    incoming reset : Bit;
+
+    outgoing spi_cs : Bit;
+    outgoing spi_clk : Bit;
+    outgoing spi_do : Bit;
+    incoming spi_di : Bit;
+
+    incoming mem_addr : Word[32];
+    incoming mem_read_enable : Bit;
+
+    outgoing mem_read_data : Word[32];
+    outgoing mem_read_data_valid : Bit;
+
+    reg state : Word[2] on clock;
+    // 0 IDLE
+    // 1 SEND
+    // 2 RECV
+    // 3 DONE
+
+    reg send_buffer : Word[32] on clock;
+    reg recv_buffer : Word[32] on clock;
+    reg data : Word[32] on clock; // for DONE state
+    data <=
+        if half_clock {
+            word(recv_buffer[31..0], 0w1) || word(0w31, spi_di)
+        } else {
+            data
+        };
+
+    reg bits_sent : Word[6] on clock;
+    reg bits_read : Word[6] on clock;
+
+    reg half_clock : Bit on clock;
+
+    half_clock <= if reset {
+        false
+    } else {
+        !half_clock
+    };
+
+    reg spi_clk_reg : Bit on clock;
+    spi_clk := spi_clk_reg;
+    spi_clk_reg <= !spi_clk_reg;
+
+    state <=
+        if reset {
+            0 // IDLE
+        } else {
+            if state == 0 { // IDLE
+                if mem_read_enable {
+                    1 // SEND
+                } else {
+                    0 // IDLE
+                }
+            } else if state == 1 { // SEND
+                if bits_sent < 31 {
+                    1 // SEND
+                } else {
+                    2 // RECV
+                }
+            } else if state == 2 { // RECV
+                if bits_read < 31 {
+                    2 // RECV
+                } else {
+                    3 // DONE
+                }
+            } else {
+                0 // IDLE
+            }
+        };
+
+    send_buffer <=
+        if half_clock {
+            if state == 0 { // IDLE
+                word(0x03w8, mem_addr[24..0])
+            } else if state == 1 { // SEND
+                word(send_buffer[31..0], 0w1)
+            } else {
+                0
+            }
+        } else {
+            send_buffer
+        };
+
+    recv_buffer <=
+        if half_clock {
+            if state == 1 { // SEND
+                0
+            } else if state == 1 { // SEND
+                word(recv_buffer[31..0], spi_di)
+
+            } else {
+                0
+            }
+        } else {
+            recv_buffer
+        };
+
+    bits_sent <=
+        if half_clock {
+            if state == 0 { // IDLE
+                0
+            } else if state == 1 { // SEND
+                bits_sent + 1
+            } else {
+                0
+            }
+        } else {
+            bits_sent
+        };
+
+    bits_read <=
+        if half_clock {
+            if state == 1 { // SEND
+                0
+            } else if state == 1 { // SEND
+                bits_read + 1
+
+            } else {
+                0
+            }
+        } else {
+            bits_read
+        };
+
+    spi_cs :=
+        if reset {
+            true
+        } else if state == 0 { // IDLE
+            true
+        } else if state == 3 { // DONE
+            true
+        } else {
+            false
+        };
+
+    spi_do :=
+        if reset {
+            true
+        } else {
+            if state == 1 { // SEND
+                send_buffer[31]
+            } else {
+                true
+            }
+        };
+
+    mem_read_data :=
+        if state == 3 { // DONE
+            word(data[8..0], data[16..8], data[24..16], data[32..24])
+        } else {
+            0xffffffffw32
+        };
+
+    mem_read_data_valid := state == 3; // DONE
+}
