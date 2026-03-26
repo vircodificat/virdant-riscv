@@ -15,8 +15,5 @@ export mod Top {
     cpu.clock := clock;
     cpu.reset := reset;
 
-    fin := (cycle == 8w32);
-    on clock {
-        display("cycle", cycle);
-    }
+    fin := cpu.is_break;
 }

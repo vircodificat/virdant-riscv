@@ -1,3 +1,4 @@
+ASM="loop.s"
 VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
 VIR_SOURCES := $(wildcard src/*.vir)
 
@@ -21,8 +22,8 @@ build/sim: sim.cpp $(VIR_SOURCES)
 		-O2 \
 		-o build/sim
 
-rom.hex: main.s
-	./asm2hex.sh main.s
+rom.hex:
+	./asm2hex.sh $(ASM)
 
 out.vcd: build/sim rom.hex
 	./build/sim

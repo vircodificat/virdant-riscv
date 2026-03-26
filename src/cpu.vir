@@ -8,6 +8,8 @@ mod Cpu {
     incoming clock : Clock;
     incoming reset : Bit;
 
+    outgoing is_break : Bit;
+
     mod ifetch of ifetch::Ifetch;
     mod rf of rf::Rf;
     mod alu of alu::Alu;
@@ -40,6 +42,7 @@ mod Cpu {
 
     extend.instr   := ifetch.instr;
     control.opcode  := ifetch.opcode;
+    control.alu_z := alu.z[0];
 
     alu.a := rf.rs1_out;
     alu.b := if control.alu_source_imm {
@@ -51,6 +54,7 @@ mod Cpu {
     alu.funct3 := ifetch.funct3;
     alu.funct7 := ifetch.funct7;
     alu.is_op  := control.alu_is_op;
+    alu.is_op_imm  := control.alu_is_op_imm;
 
     mem.addr := alu.z;
     mem.data_in := zext(ifetch.rs1);
@@ -61,6 +65,8 @@ mod Cpu {
     };
     rf.write   := control.rf_write;
     mem.write   := control.mem_write;
+
+    is_break := control.is_system;
 }
 
 ext mod Mem {

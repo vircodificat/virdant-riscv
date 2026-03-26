@@ -1,12 +1,15 @@
 mod Control {
     incoming opcode : Word[7];
+    incoming alu_z : Bit;
 
     outgoing rf_write : Bit;
     outgoing mem_write : Bit;
     outgoing wb_mem : Bit;
     outgoing alu_source_imm : Bit;
     outgoing alu_is_op : Bit;
+    outgoing alu_is_op_imm : Bit;
     outgoing set_pc : Bit;
+    outgoing is_system : Bit;
 
     mem_write :=
         if opcode == 35 { // STORE
@@ -49,22 +52,33 @@ mod Control {
         };
 
     alu_is_op :=
-        if opcode == 19 { // OP-IMM
+        if opcode == 51 { // OP
             true
-        } else if opcode == 51 { // OP
+        } else {
+            false
+        };
+
+    alu_is_op_imm :=
+        if opcode == 19 { // OP-IMM
             true
         } else {
             false
         };
 
     set_pc :=
-        if opcode == 99 { // BRANCH
-            true
-        } else if opcode == 103 { // JALR
-            true
-        } else if opcode == 111 { // JAL
-            true
+        if alu_z {
+            if opcode == 99 { // BRANCH
+                true
+            } else if opcode == 103 { // JALR
+                true
+            } else if opcode == 111 { // JAL
+                true
+            } else {
+                false
+            }
         } else {
             false
         };
+
+    is_system := opcode == 115; // SYSTEM
 }

@@ -7,13 +7,13 @@ mod Extend {
 
     out :=
         if opcode == 19 { // OP-IMM
-            zext(instr[32..20])
+            sext(instr[32..20])
         } else if opcode == 55 { // LUI
             word(instr[32..12], 0w12)
         } else if opcode == 99 { // BRANCH
-            word(0w19, instr[31], instr[7], instr[31..25], instr[12..8], 0w1)
+            sext(word(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
         } else if opcode == 111 { // JAL
-            word(0w11, instr[31], instr[20..12], instr[20], instr[31..21], 0w1)
+            sext(word(instr[31], instr[20..12], instr[20], instr[31..21], 0w1))
         } else {
             0w32
         };

@@ -49,6 +49,9 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < 200; i++) {
         tick(top, tfp);
+        if (top->fin) {
+            break;
+        }
     }
 
     tfp->close();
