@@ -22,7 +22,7 @@ build/sim: sim.cpp
 out.vcd: build/sim
 	./build/sim
 
-wave: out.vcd
+wave: out.vcd rom.hex
 	gtkwave sim.gtkw
 
 clean:

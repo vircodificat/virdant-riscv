@@ -5,9 +5,12 @@ mod Extend {
     wire opcode : Word[7];
     opcode := instr[7..0];
 
-    out := if opcode == 19 { // OP-IMM
-        zext(instr[32..20])
-    } else {
-        0w32
-    };
+    out :=
+        if opcode == 19 { // OP-IMM
+            zext(instr[32..20])
+        } else if opcode == 55 { // LUI
+            word(instr[32..12], 0w12)
+        } else {
+            0w32
+        };
 }

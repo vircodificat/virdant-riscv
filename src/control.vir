@@ -5,23 +5,30 @@ mod Control {
     outgoing wb_mem : Bit;
     outgoing alu_source_imm : Bit;
 
-    rf_write := if opcode == 19 { // OP-IMM
-        true
-    } else if opcode == 52 { // OP
-        true
-    } else {
-        false
-    };
+    rf_write :=
+        if opcode == 19 { // OP-IMM
+            true
+        } else if opcode == 52 { // OP
+            true
+        } else if opcode == 55 { // LUI
+            true
+        } else {
+            false
+        };
 
-    wb_mem := if opcode == 3 { // LOAD
-        true
-    } else {
-        false
-    };
+    wb_mem :=
+        if opcode == 3 { // LOAD
+            true
+        } else {
+            false
+        };
 
-    alu_source_imm := if opcode == 19 { // OP-IMM
-        true
-    } else {
-        false
-    };
+    alu_source_imm :=
+        if opcode == 19 { // OP-IMM
+            true
+        } else if opcode == 55 { // LUI
+            true
+        } else {
+            false
+        };
 }

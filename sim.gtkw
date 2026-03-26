@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Mar 26 08:52:51 2026
+[*] Thu Mar 26 09:14:47 2026
 [*]
-[dumpfile] "out.vcd"
-[dumpfile_mtime] "Thu Mar 26 08:52:34 2026"
-[dumpfile_size] 24901
-[savefile] "sim.gtkw"
+[dumpfile] "/home/vircodificat/projects/virdant-riscv/out.vcd"
+[dumpfile_mtime] "Thu Mar 26 09:14:32 2026"
+[dumpfile_size] 25130
+[savefile] "/home/vircodificat/projects/virdant-riscv/sim.gtkw"
 [timestart] 0
 [size] 1440 881
 [pos] -27 -24
-*-6.000000 5 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.000000 10 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.Top.
 [treeopen] TOP.Top.cpu.
@@ -89,11 +89,13 @@ TOP.Top.cpu.rf.write
 @22
 TOP.Top.cpu.rf.rd_in[31:0]
 TOP.Top.cpu.rf.x1[31:0]
+@23
 TOP.Top.cpu.rf.x2[31:0]
+@22
 TOP.Top.cpu.rf.x3[31:0]
 TOP.Top.cpu.rf.x4[31:0]
+@24
 TOP.Top.cpu.rf.x5[31:0]
-@23
 TOP.Top.cpu.rf.x6[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
