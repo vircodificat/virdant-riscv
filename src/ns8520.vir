@@ -1,0 +1,44 @@
+
+
+// reg_rbr_thr = 0x0;
+// reg_ier = 0x1;
+// reg_iir_fcr = 0x2;
+// reg_lcr = 0x3;
+// reg_mcr = 0x4;
+// reg_lsr = 0x5;
+// reg_msr = 0x6;
+// reg_scr = 0x7;
+
+mod Ns8520 {
+    // A Channel
+    incoming a_valid : Bit;
+    outgoing a_ready : Bit;
+    incoming a_opcode : Bit;
+    incoming a_param : Bit;
+    incoming a_size : Bit;
+    incoming a_source : Bit;
+    incoming a_addr : Bit;
+    incoming a_mask : Bit;
+    incoming a_data : Bit;
+
+    // D Channel
+    outgoing d_valid : Bit;
+    incoming d_ready : Bit;
+    outgoing d_opcode : Bit;
+    outgoing d_param : Bit;
+    outgoing d_size : Bit;
+    outgoing d_source : Bit;
+    outgoing d_addr : Bit;
+    outgoing d_mask : Bit;
+    outgoing d_data : Bit;
+
+    a_ready  := ?;
+    d_valid  := ?;
+    d_opcode := ?;
+    d_param  := ?;
+    d_size   := ?;
+    d_source := ?;
+    d_addr   := ?;
+    d_mask   := ?;
+    d_data   := ?;
+}

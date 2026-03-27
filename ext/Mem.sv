@@ -1,4 +1,4 @@
-module \cpu::Mem (
+module \mem::Mem (
     input  wire             clock,
     input  wire     [31:0]  addr,
     input  wire     [31:0]  data_in,

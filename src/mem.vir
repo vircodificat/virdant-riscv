@@ -1,0 +1,131 @@
+ext mod Mem {
+    incoming clock : Clock;
+    incoming addr     : Word[32];
+    outgoing data_out : Word[32];
+    incoming data_in  : Word[32];
+    incoming write  : Bit;
+}
+
+mod TLMem {
+    incoming clock : Clock;
+    incoming reset : Bit;
+
+    // A Channel
+    incoming a_valid : Bit;
+    outgoing a_ready : Bit;
+    incoming a_opcode : Word[3];
+    incoming a_param : Bit;
+    incoming a_size : Word[1];
+    incoming a_source : Word[1];
+    incoming a_addr : Word[32];
+    incoming a_mask : Word[4];
+    incoming a_data : Word[32];
+
+    // D Channel
+    outgoing d_valid : Bit;
+    incoming d_ready : Bit;
+    outgoing d_opcode : Word[3];
+    outgoing d_param : Bit;
+    outgoing d_size : Word[1];
+    outgoing d_source : Word[1];
+    outgoing d_mask : Word[4];
+    outgoing d_data : Word[32];
+
+    mod mem of Mem;
+    mem.clock := clock;
+    mem.addr := addr_reg;
+    mem.data_in := a_data;
+    mem.write :=
+        if master_opcode == 0 { // PutFullData
+            true
+        } else if master_opcode == 1 { // PutPartialData
+            true
+        } else {
+            false
+        };
+
+    reg master_opcode : Word[3] on clock;
+
+    reg state : Word[3] on clock;
+    // 0 IDLE
+    // 1 DoGet
+    // 2 DoPut
+
+    reg addr_reg : Word[32] on clock;
+    reg data_reg : Word[32] on clock;
+
+    wire a_fire : Bit;
+    a_fire := if a_valid {
+        if a_ready {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    wire d_fire : Bit;
+    d_fire := if d_valid {
+        if d_ready {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    data_reg <=
+        if reset {
+            0
+        } else if state == 0 {
+            ?
+        } else {
+            0
+        };
+
+    state <=
+        if reset {
+            0
+        } else {
+            a_opcode
+        };
+
+    master_opcode <=
+        if a_ready {
+            a_opcode
+        } else {
+            master_opcode
+        };
+
+    reg source_reg : Word[1] on clock;
+    source_reg <= a_source;
+    d_source := source_reg;
+
+    addr_reg <=
+        if a_ready {
+            a_addr
+        } else {
+            addr_reg
+        };
+
+    a_ready := true;
+    d_valid := state != 0;
+
+    d_opcode :=
+        if master_opcode == 4 { // Get
+            1 // AccessAckData
+        } else if master_opcode == 0 { // PutFullData
+            0 // AccessAck
+        } else if master_opcode == 1 { // PutPartialData
+            0 // AccessAck
+        } else {
+            0 // Don't care
+        };
+
+    d_param := false;
+    d_size := 1;
+    d_mask := 7w4; // all bytes
+    d_data := mem.data_out;
+}

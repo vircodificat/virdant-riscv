@@ -3,6 +3,7 @@ import alu;
 import control;
 import extend;
 import ifetch;
+import mem;
 
 mod Cpu {
     incoming clock : Clock;
@@ -15,7 +16,7 @@ mod Cpu {
     mod alu of alu::Alu;
     mod control of control::Control;
     mod extend of extend::Extend;
-    mod mem of cpu::Mem;
+    mod mem of mem::Mem;
 
     ifetch.clock := clock;
     rf.clock := clock;
@@ -34,7 +35,6 @@ mod Cpu {
         } else {
             0w32
         };
-
 
     rf.rd  := ifetch.rd;
     rf.rs1 := ifetch.rs1;
@@ -67,12 +67,4 @@ mod Cpu {
     mem.write   := control.mem_write;
 
     is_break := control.is_system;
-}
-
-ext mod Mem {
-    incoming clock : Clock;
-    incoming addr     : Word[32];
-    outgoing data_out : Word[32];
-    incoming data_in  : Word[32];
-    incoming write  : Bit;
 }
