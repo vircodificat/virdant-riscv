@@ -5,11 +5,37 @@ import extend;
 import ifetch;
 import mem;
 
+union type State {
+    Fetching();
+    Execute(instr: Word[16]);
+    Writeback();
+}
+
 mod Cpu {
     incoming clock : Clock;
     incoming reset : Bit;
 
     outgoing is_break : Bit;
+
+    outgoing instr_addr  : Word[32];
+    outgoing instr_ready : Bit;
+    incoming instr_data  : Word[16];
+    incoming instr_valid : Bit;
+
+    reg state : State on clock;
+    if reset {
+        state <= @Fetching();
+    } else {
+        state <= match state {
+            @Fetching() => if instr_valid {
+                @Execute(instr_data)
+            } else {
+                @Fetching()
+            };
+            @Execute(instr) => @Writeback();
+            @Writeback() => @Fetching();
+        };
+    };
 
     mod ifetch of ifetch::Ifetch;
     mod rf of rf::Rf;
