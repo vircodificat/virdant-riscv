@@ -1,0 +1,11 @@
+enum type Opcode width 7 {
+    BRANCH = 99;
+    JALR   = 103;
+    JAL    = 111;
+    OP_IMM = 19;
+    OP     = 51;
+    LUI    = 55;
+    LOAD   = 3;
+    SYSTEM = 115;
+    STORE  = 35;
+}

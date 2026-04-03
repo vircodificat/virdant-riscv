@@ -26,11 +26,11 @@ mod Cpu {
     ifetch.set_pc := control.set_pc;
 
     ifetch.next_pc :=
-        if ifetch.opcode == 99 { // BRANCH
+        if ifetch.opcode == #BRANCH {
             ifetch.pc + extend.out
-        } else if ifetch.opcode == 103 { // JALR
+        } else if ifetch.opcode == #JALR {
             ifetch.pc + alu.z
-        } else if ifetch.opcode == 111 { // JAL
+        } else if ifetch.opcode == #JAL {
            ifetch.pc + extend.out
         } else {
             0w32

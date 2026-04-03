@@ -1,5 +1,7 @@
+import opcode;
+
 mod Control {
-    incoming opcode : Word[7];
+    incoming opcode : opcode::Opcode;
     incoming alu_z : Bit;
 
     outgoing rf_write : Bit;
@@ -12,54 +14,54 @@ mod Control {
     outgoing is_system : Bit;
 
     mem_write :=
-        if opcode == 35 { // STORE
+        if opcode == #STORE {
             true
         } else {
             false
         };
 
     rf_write :=
-        if opcode == 19 { // OP-IMM
+        if opcode == #OP_IMM {
             true
-        } else if opcode == 51 { // OP
+        } else if opcode == #OP {
             true
-        } else if opcode == 55 { // LUI
+        } else if opcode == #LUI {
             true
-        } else if opcode == 3 { // LOAD
+        } else if opcode == #LOAD {
             true
-        } else if opcode == 103 { // JALR
+        } else if opcode == #JALR {
             true
-        } else if opcode == 111 { // JAL
+        } else if opcode == #JAL {
             true
         } else {
             false
         };
 
     wb_mem :=
-        if opcode == 3 { // LOAD
+        if opcode == #LOAD {
             true
         } else {
             false
         };
 
     alu_source_imm :=
-        if opcode == 19 { // OP-IMM
+        if opcode == #OP_IMM {
             true
-        } else if opcode == 55 { // LUI
+        } else if opcode == #LUI {
             true
         } else {
             false
         };
 
     alu_is_op :=
-        if opcode == 51 { // OP
+        if opcode == #OP {
             true
         } else {
             false
         };
 
     alu_is_op_imm :=
-        if opcode == 19 { // OP-IMM
+        if opcode == #OP_IMM {
             true
         } else {
             false
@@ -67,11 +69,11 @@ mod Control {
 
     set_pc :=
         if alu_z {
-            if opcode == 99 { // BRANCH
+            if opcode == #BRANCH {
                 true
-            } else if opcode == 103 { // JALR
+            } else if opcode == #JALR {
                 true
-            } else if opcode == 111 { // JAL
+            } else if opcode == #JAL {
                 true
             } else {
                 false
@@ -80,5 +82,5 @@ mod Control {
             false
         };
 
-    is_system := opcode == 115; // SYSTEM
+    is_system := opcode == #SYSTEM;
 }

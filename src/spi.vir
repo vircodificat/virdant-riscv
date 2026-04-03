@@ -1,3 +1,10 @@
+enum type State width 4 {
+    Idle = 1;
+    Send = 2;
+    Recv = 4;
+    Done = 8;
+}
+
 mod SpiFlash {
     incoming clock : Clock;
     incoming reset : Bit;
@@ -13,18 +20,14 @@ mod SpiFlash {
     outgoing mem_read_data : Word[32];
     outgoing mem_read_data_valid : Bit;
 
-    reg state : Word[2] on clock;
-    // 0 IDLE
-    // 1 SEND
-    // 2 RECV
-    // 3 DONE
+    reg state : State on clock;
 
     reg send_buffer : Word[32] on clock;
     reg recv_buffer : Word[32] on clock;
     reg data : Word[32] on clock; // for DONE state
     data <=
         if half_clock {
-            word(recv_buffer[31..0], 0w1) || word(0w31, spi_di)
+            word(recv_buffer[31..0], 0w1) | word(0w31, spi_di)
         } else {
             data
         };
@@ -46,36 +49,36 @@ mod SpiFlash {
 
     state <=
         if reset {
-            0 // IDLE
+            #Idle
         } else {
-            if state == 0 { // IDLE
+            if state == #Idle { // IDLE
                 if mem_read_enable {
-                    1 // SEND
+                    #Send
                 } else {
-                    0 // IDLE
+                    #Idle
                 }
-            } else if state == 1 { // SEND
+            } else if state == #Send { // SEND
                 if bits_sent < 31 {
-                    1 // SEND
+                    #Send
                 } else {
-                    2 // RECV
+                    #Recv
                 }
-            } else if state == 2 { // RECV
+            } else if state == #Recv { // RECV
                 if bits_read < 31 {
-                    2 // RECV
+                    #Recv
                 } else {
-                    3 // DONE
+                    #Done
                 }
             } else {
-                0 // IDLE
+                #Idle
             }
         };
 
     send_buffer <=
         if half_clock {
-            if state == 0 { // IDLE
+            if state == #Idle { // IDLE
                 word(0x03w8, mem_addr[24..0])
-            } else if state == 1 { // SEND
+            } else if state == #Send {
                 word(send_buffer[31..0], 0w1)
             } else {
                 0
@@ -86,9 +89,9 @@ mod SpiFlash {
 
     recv_buffer <=
         if half_clock {
-            if state == 1 { // SEND
+            if state == #Send { // SEND
                 0
-            } else if state == 1 { // SEND
+            } else if state == #Send { // SEND
                 word(recv_buffer[31..0], spi_di)
 
             } else {
@@ -100,9 +103,9 @@ mod SpiFlash {
 
     bits_sent <=
         if half_clock {
-            if state == 0 { // IDLE
+            if state == #Idle { // IDLE
                 0
-            } else if state == 1 { // SEND
+            } else if state == #Send { // SEND
                 bits_sent + 1
             } else {
                 0
@@ -113,9 +116,9 @@ mod SpiFlash {
 
     bits_read <=
         if half_clock {
-            if state == 1 { // SEND
+            if state == #Send { // SEND
                 0
-            } else if state == 1 { // SEND
+            } else if state == #Send { // SEND
                 bits_read + 1
 
             } else {
@@ -128,9 +131,9 @@ mod SpiFlash {
     spi_cs :=
         if reset {
             true
-        } else if state == 0 { // IDLE
+        } else if state == #Idle { // IDLE
             true
-        } else if state == 3 { // DONE
+        } else if state == #Done { // DONE
             true
         } else {
             false
@@ -140,7 +143,7 @@ mod SpiFlash {
         if reset {
             true
         } else {
-            if state == 1 { // SEND
+            if state == #Send { // SEND
                 send_buffer[31]
             } else {
                 true
@@ -148,11 +151,11 @@ mod SpiFlash {
         };
 
     mem_read_data :=
-        if state == 3 { // DONE
+        if state == #Done { // DONE
             word(data[8..0], data[16..8], data[24..16], data[32..24])
         } else {
             0xffffffffw32
         };
 
-    mem_read_data_valid := state == 3; // DONE
+    mem_read_data_valid := state == #Done; // DONE
 }

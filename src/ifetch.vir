@@ -1,3 +1,5 @@
+import opcode;
+
 mod Ifetch {
     incoming clock : Clock;
     incoming reset : Bit;
@@ -6,7 +8,7 @@ mod Ifetch {
     incoming next_pc : Word[32];
 
     outgoing instr : Word[32];
-    outgoing opcode : Word[7];
+    outgoing opcode : opcode::Opcode;
 
     outgoing rd : Word[5];
     outgoing rs1 : Word[5];
@@ -33,7 +35,20 @@ mod Ifetch {
             pc_reg + 4w32
         };
 
-    opcode := instr_mem.instr[7..0];
+    wire opcode_bits : Word[7];
+    opcode_bits := instr_mem.instr[7..0];
+    opcode :=
+        if opcode_bits ==  99 { #BRANCH }
+        else if opcode_bits ==  103 { #JALR }
+        else if opcode_bits ==  111 { #JAL }
+        else if opcode_bits ==  19 { #OP_IMM }
+        else if opcode_bits ==  51 { #OP }
+        else if opcode_bits ==  55 { #LUI }
+        else if opcode_bits ==  3 { #LOAD }
+        else if opcode_bits ==  115 { #SYSTEM }
+        else if opcode_bits ==  35 { #STORE }
+        else { #SYSTEM };
+
     rd  := instr_mem.instr[12..7];
     rs1 := instr_mem.instr[20..15];
     rs2    := instr_mem.instr[25..20];

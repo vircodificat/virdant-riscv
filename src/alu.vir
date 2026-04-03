@@ -26,7 +26,7 @@ mod Alu {
             } else if funct3 == 3 { // SLTU
                 0
             } else if funct3 == 4 { // XOR
-                a ^^ b
+                a ^ b
             } else if funct3 == 5 { // SRL/A
                 if funct7[5] { // SRA
                     0
@@ -34,9 +34,9 @@ mod Alu {
                     0
                 }
             } else if funct3 == 6 { // OR
-                a || b
+                a | b
             } else if funct3 == 7 { // AND
-                a && b
+                a & b
             } else {
                 0
             }
@@ -50,13 +50,13 @@ mod Alu {
             } else if funct3 == 3 { // SLTU
                 0
             } else if funct3 == 4 { // XOR
-                a ^^ b
+                a ^ b
             } else if funct3 == 5 { // SRL/A
                 0
             } else if funct3 == 6 { // OR
-                a || b
+                a | b
             } else if funct3 == 7 { // AND
-                a && b
+                a & b
             } else {
                 0
             }
