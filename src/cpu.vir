@@ -7,7 +7,7 @@ import mem;
 
 union type State {
     Fetching();
-    Execute(instr: Word[16]);
+    Execute(instr: Word[32]);
     Writeback();
 }
 
@@ -19,7 +19,7 @@ mod Cpu {
 
     outgoing instr_addr  : Word[32];
     outgoing instr_ready : Bit;
-    incoming instr_data  : Word[16];
+    incoming instr_data  : Word[32];
     incoming instr_valid : Bit;
 
     outgoing mem_addr : Word[32];
@@ -53,6 +53,8 @@ mod Cpu {
 
     ifetch.reset := reset;
     ifetch.set_pc := control.set_pc;
+    ifetch.instr_mem_instr := instr_data;
+    instr_ready := ifetch.ready;
 
     ifetch.next_pc :=
         if ifetch.opcode == #BRANCH {

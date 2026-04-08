@@ -12,6 +12,7 @@ mod Ifetch {
 
     outgoing instr : Word[32];
     outgoing opcode : opcode::Opcode;
+    outgoing ready : Bit;
 
     outgoing rd : Word[5];
     outgoing rs1 : Word[5];
@@ -27,6 +28,8 @@ mod Ifetch {
 
     instr_mem_addr := pc_reg;
     instr := instr_mem_instr;
+
+    ready := true;
 
     pc_reg <=
         if reset {

@@ -1,6 +1,3 @@
-import alu;
-import rf;
-import ifetch;
 import cpu;
 import mem;
 
@@ -17,7 +14,16 @@ export mod Top {
     cpu.reset := reset;
 
     mod mem of mem::Mem;
+    mem.clock    := clock;
+    mem.addr     := cpu.mem_addr;
+    mem.data_in  := cpu.mem_data_out;
+    mem.write    := cpu.mem_write;
+    cpu.mem_data_in := mem.data_out;
+
     mod instr_mem of mem::Rom;
+    instr_mem.addr  := cpu.instr_addr;
+    cpu.instr_data  := instr_mem.instr;
+    cpu.instr_valid := true;
 
     fin := cpu.is_break;
 }
