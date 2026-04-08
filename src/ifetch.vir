@@ -4,6 +4,9 @@ mod Ifetch {
     incoming clock : Clock;
     incoming reset : Bit;
 
+    outgoing instr_mem_addr : Word[32];
+    incoming instr_mem_instr : Word[32];
+
     incoming set_pc : Bit;
     incoming next_pc : Word[32];
 
@@ -22,9 +25,8 @@ mod Ifetch {
     reg pc_reg : Word[32] on clock;
     pc := pc_reg;
 
-    mod instr_mem of Rom;
-    instr_mem.addr := pc_reg;
-    instr := instr_mem.instr;
+    instr_mem_addr := pc_reg;
+    instr := instr_mem_instr;
 
     pc_reg <=
         if reset {
@@ -36,7 +38,7 @@ mod Ifetch {
         };
 
     wire opcode_bits : Word[7];
-    opcode_bits := instr_mem.instr[7..0];
+    opcode_bits := instr_mem_instr[7..0];
     opcode :=
         if opcode_bits ==  99 { #BRANCH }
         else if opcode_bits ==  103 { #JALR }
@@ -49,18 +51,9 @@ mod Ifetch {
         else if opcode_bits ==  35 { #STORE }
         else { #SYSTEM };
 
-    rd  := instr_mem.instr[12..7];
-    rs1 := instr_mem.instr[20..15];
-    rs2    := instr_mem.instr[25..20];
-    funct3 := instr_mem.instr[15..12];
-    funct7 := instr_mem.instr[32..25];
-
-//    on clock {
-//        assert(pc_reg[0] == false);
-//    }
-}
-
-ext mod Rom {
-    incoming addr : Word[32];
-    outgoing instr : Word[32];
+    rd  := instr_mem_instr[12..7];
+    rs1 := instr_mem_instr[20..15];
+    rs2    := instr_mem_instr[25..20];
+    funct3 := instr_mem_instr[15..12];
+    funct7 := instr_mem_instr[32..25];
 }

@@ -6,6 +6,11 @@ ext mod Mem {
     incoming write  : Bit;
 }
 
+ext mod Rom {
+    incoming addr : Word[32];
+    outgoing instr : Word[32];
+}
+
 mod TLMem {
     incoming clock : Clock;
     incoming reset : Bit;

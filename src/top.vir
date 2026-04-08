@@ -2,6 +2,7 @@ import alu;
 import rf;
 import ifetch;
 import cpu;
+import mem;
 
 export mod Top {
     incoming clock : Clock;
@@ -14,6 +15,9 @@ export mod Top {
     mod cpu of cpu::Cpu;
     cpu.clock := clock;
     cpu.reset := reset;
+
+    mod mem of mem::Mem;
+    mod instr_mem of mem::Rom;
 
     fin := cpu.is_break;
 }

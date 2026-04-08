@@ -13,13 +13,13 @@ double sc_time_stamp() {
 void tick(VTop *top, VerilatedVcdC* tfp) {
     top->clock = 1;
     top->eval();
-    tfp->dump(main_time);
     main_time += half_clock_period_ps;
+    tfp->dump(main_time);
 
     top->clock = 0;
     top->eval();
-    tfp->dump(main_time);
     main_time += half_clock_period_ps;
+    tfp->dump(main_time);
 }
 
 void reset(VTop *top, VerilatedVcdC* tfp) {
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
     reset(top, tfp);
 
-    for (int i = 0; i < 200; i++) {
+    for (;;) {
         tick(top, tfp);
         if (top->fin) {
             break;

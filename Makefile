@@ -25,8 +25,10 @@ build/sim: sim.cpp $(VIR_SOURCES)
 rom.hex:
 	./asm2hex.sh $(ASM)
 
-out.vcd: build/sim rom.hex
+run: build/sim rom.hex
 	./build/sim
+
+out.vcd: run
 
 wave: out.vcd rom.hex
 	gtkwave sim.gtkw

@@ -22,6 +22,11 @@ mod Cpu {
     incoming instr_data  : Word[16];
     incoming instr_valid : Bit;
 
+    outgoing mem_addr : Word[32];
+    outgoing mem_write : Bit;
+    outgoing mem_data_out : Word[32];
+    incoming mem_data_in  : Word[32];
+
     reg state : State on clock;
     if reset {
         state <= @Fetching();
@@ -42,11 +47,9 @@ mod Cpu {
     mod alu of alu::Alu;
     mod control of control::Control;
     mod extend of extend::Extend;
-    mod mem of mem::Mem;
 
     ifetch.clock := clock;
     rf.clock := clock;
-    mem.clock := clock;
 
     ifetch.reset := reset;
     ifetch.set_pc := control.set_pc;
@@ -82,15 +85,17 @@ mod Cpu {
     alu.is_op  := control.alu_is_op;
     alu.is_op_imm  := control.alu_is_op_imm;
 
-    mem.addr := alu.z;
-    mem.data_in := zext(ifetch.rs1);
+    mem_addr := alu.z;
+    mem_data_out := zext(ifetch.rs1);
     rf.rd_in   := if control.wb_mem {
-        mem.data_out
+        mem_data_in
     } else {
         alu.z
     };
     rf.write   := control.rf_write;
-    mem.write   := control.mem_write;
+    mem_write   := control.mem_write;
+
+    instr_addr := ifetch.instr_mem_addr;
 
     is_break := control.is_system;
 }

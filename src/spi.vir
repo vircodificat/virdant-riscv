@@ -5,14 +5,18 @@ enum type State width 4 {
     Done = 8;
 }
 
+socket Spi {
+    mosi cs : Bit;
+    mosi clk : Bit;
+    mosi do : Bit;
+    miso di : Bit;
+}
+
 mod SpiFlash {
     incoming clock : Clock;
     incoming reset : Bit;
 
-    outgoing spi_cs : Bit;
-    outgoing spi_clk : Bit;
-    outgoing spi_do : Bit;
-    incoming spi_di : Bit;
+    master socket spi of Spi;
 
     incoming mem_addr : Word[32];
     incoming mem_read_enable : Bit;
@@ -27,7 +31,7 @@ mod SpiFlash {
     reg data : Word[32] on clock; // for DONE state
     data <=
         if half_clock {
-            word(recv_buffer[31..0], 0w1) | word(0w31, spi_di)
+            word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
         } else {
             data
         };
@@ -44,7 +48,7 @@ mod SpiFlash {
     };
 
     reg spi_clk_reg : Bit on clock;
-    spi_clk := spi_clk_reg;
+    spi.clk := spi_clk_reg;
     spi_clk_reg <= !spi_clk_reg;
 
     state <=
@@ -92,7 +96,7 @@ mod SpiFlash {
             if state == #Send { // SEND
                 0
             } else if state == #Send { // SEND
-                word(recv_buffer[31..0], spi_di)
+                word(recv_buffer[31..0], spi.di)
 
             } else {
                 0
@@ -128,7 +132,7 @@ mod SpiFlash {
             bits_read
         };
 
-    spi_cs :=
+    spi.cs :=
         if reset {
             true
         } else if state == #Idle { // IDLE
@@ -139,7 +143,7 @@ mod SpiFlash {
             false
         };
 
-    spi_do :=
+    spi.do :=
         if reset {
             true
         } else {

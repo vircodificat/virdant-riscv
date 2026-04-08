@@ -19,7 +19,7 @@ module \mem::Mem (
     end
 endmodule
 
-module \ifetch::Rom (
+module \mem::Rom (
     input  wire     [31:0]  addr,
     output reg      [31:0]  instr
 );
