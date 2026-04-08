@@ -3,7 +3,7 @@ import alu;
 import control;
 import extend;
 import ifetch;
-import mem;
+import wishbone;
 
 union type State {
     Fetching();
@@ -17,23 +17,17 @@ mod Cpu {
 
     outgoing is_break : Bit;
 
-    outgoing instr_addr  : Word[32];
-    outgoing instr_ready : Bit;
-    incoming instr_data  : Word[32];
-    incoming instr_valid : Bit;
+    master socket instr of wishbone::Wishbone;
+    master socket mem of wishbone::Wishbone;
 
-    outgoing mem_addr : Word[32];
-    outgoing mem_write : Bit;
-    outgoing mem_data_out : Word[32];
-    incoming mem_data_in  : Word[32];
 
     reg state : State on clock;
     if reset {
         state <= @Fetching();
     } else {
         state <= match state {
-            @Fetching() => if instr_valid {
-                @Execute(instr_data)
+            @Fetching() => if instr.ack_i {
+                @Execute(instr.dat_i)
             } else {
                 @Fetching()
             };
@@ -53,8 +47,12 @@ mod Cpu {
 
     ifetch.reset := reset;
     ifetch.set_pc := control.set_pc;
-    ifetch.instr_mem_instr := instr_data;
-    instr_ready := ifetch.ready;
+    ifetch.instr_mem_instr := instr.dat_i;
+    instr.adr_o := ifetch.instr_mem_addr;
+    instr.dat_o := 0w32;
+    instr.we_o  := false;
+    instr.stb_o := true;
+    instr.cyc_o := true;
 
     ifetch.next_pc :=
         if ifetch.opcode == #BRANCH {
@@ -87,17 +85,17 @@ mod Cpu {
     alu.is_op  := control.alu_is_op;
     alu.is_op_imm  := control.alu_is_op_imm;
 
-    mem_addr := alu.z;
-    mem_data_out := zext(ifetch.rs1);
-    rf.rd_in   := if control.wb_mem {
-        mem_data_in
+    mem.adr_o := alu.z;
+    mem.dat_o := zext(ifetch.rs1);
+    mem.we_o  := control.mem_write;
+    mem.stb_o := true;
+    mem.cyc_o := true;
+    rf.rd_in  := if control.wb_mem {
+        mem.dat_i
     } else {
         alu.z
     };
-    rf.write   := control.rf_write;
-    mem_write   := control.mem_write;
-
-    instr_addr := ifetch.instr_mem_addr;
+    rf.write  := control.rf_write;
 
     is_break := control.is_system;
 }

@@ -1,3 +1,27 @@
+import wishbone;
+
+mod WbMem {
+    incoming clock : Clock;
+    slave socket wb of wishbone::Wishbone;
+
+    mod mem of Mem;
+    mem.clock   := clock;
+    mem.addr    := wb.adr_o;
+    mem.data_in := wb.dat_o;
+    mem.write   := wb.cyc_o && wb.stb_o && wb.we_o;
+    wb.dat_i    := mem.data_out;
+    wb.ack_i    := wb.stb_o;
+}
+
+mod WbRom {
+    slave socket wb of wishbone::Wishbone;
+
+    mod rom of Rom;
+    rom.addr := wb.adr_o;
+    wb.dat_i := rom.instr;
+    wb.ack_i := wb.stb_o;
+}
+
 ext mod Mem {
     incoming clock : Clock;
     incoming addr     : Word[32];

@@ -13,17 +13,24 @@ export mod Top {
     cpu.clock := clock;
     cpu.reset := reset;
 
-    mod mem of mem::Mem;
-    mem.clock    := clock;
-    mem.addr     := cpu.mem_addr;
-    mem.data_in  := cpu.mem_data_out;
-    mem.write    := cpu.mem_write;
-    cpu.mem_data_in := mem.data_out;
+    mod mem of mem::WbMem;
+    mem.clock      := clock;
+    mem.wb.adr_o   := cpu.mem.adr_o;
+    mem.wb.dat_o   := cpu.mem.dat_o;
+    mem.wb.we_o    := cpu.mem.we_o;
+    mem.wb.stb_o   := cpu.mem.stb_o;
+    mem.wb.cyc_o   := cpu.mem.cyc_o;
+    cpu.mem.dat_i  := mem.wb.dat_i;
+    cpu.mem.ack_i  := mem.wb.ack_i;
 
-    mod instr_mem of mem::Rom;
-    instr_mem.addr  := cpu.instr_addr;
-    cpu.instr_data  := instr_mem.instr;
-    cpu.instr_valid := true;
+    mod instr_mem of mem::WbRom;
+    instr_mem.wb.adr_o  := cpu.instr.adr_o;
+    instr_mem.wb.dat_o  := cpu.instr.dat_o;
+    instr_mem.wb.we_o   := cpu.instr.we_o;
+    instr_mem.wb.stb_o  := cpu.instr.stb_o;
+    instr_mem.wb.cyc_o  := cpu.instr.cyc_o;
+    cpu.instr.dat_i     := instr_mem.wb.dat_i;
+    cpu.instr.ack_i     := instr_mem.wb.ack_i;
 
     fin := cpu.is_break;
 }
