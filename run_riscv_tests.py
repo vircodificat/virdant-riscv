@@ -52,6 +52,10 @@ def elf_to_hex(elf_path: str, hex_path: str) -> None:
 
         words = [struct.unpack_from("<I", data, i)[0] for i in range(0, len(data), 4)]
 
+        # Patch word 0: replace the jal to reset_vector with jal x0, 0x18c (test_2).
+        # JAL x0, 0x18c encodes as 0x18c0006f.
+        words[0] = 0x18c0006f
+
         if len(words) > ROM_WORDS:
             print(f"  WARNING: {os.path.basename(elf_path)}: binary is {len(words)} words "
                   f"(ROM holds {ROM_WORDS}); truncating — test may not run correctly.")

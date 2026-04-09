@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
     Verilated::traceEverOn(true);
     VerilatedVcdC* tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("out.vcd");
+    tfp->open("dump.vcd");
 
     top->reset = 1;
     top->clock = 0;

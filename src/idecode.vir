@@ -39,8 +39,16 @@ mod IDecode {
     imm :=
         if opcode_bits == 19 { // OP-IMM
             sext(instr[32..20])
+        } else if opcode_bits == 103 { // JALR
+            sext(instr[32..20])
+        } else if opcode_bits == 3 { // LOAD
+            sext(instr[32..20])
         } else if opcode_bits == 55 { // LUI
             word(instr[32..12], 0w12)
+        } else if opcode_bits == 23 { // AUIPC
+            word(instr[32..12], 0w12)
+        } else if opcode_bits == 35 { // STORE
+            sext(word(instr[32..25], instr[12..7]))
         } else if opcode_bits == 99 { // BRANCH
             sext(word(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
         } else if opcode_bits == 111 { // JAL
