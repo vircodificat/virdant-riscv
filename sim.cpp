@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
     reset(top, tfp);
 
-    int max_cycles = 1000;
+    int max_cycles = 10000;
     for (int i = 0; i < max_cycles; i++) {
         tick(top, tfp);
         if (top->fin) {
