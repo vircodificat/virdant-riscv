@@ -6,7 +6,7 @@ mod Control {
 
     outgoing rf_write : Bit;
     outgoing mem_write : Bit;
-    outgoing wb_mem : Bit;
+    outgoing latch_rf_from_mem : Bit;
     outgoing alu_source_imm : Bit;
     outgoing alu_is_op : Bit;
     outgoing alu_is_op_imm : Bit;
@@ -39,7 +39,7 @@ mod Control {
             false
         };
 
-    wb_mem :=
+    latch_rf_from_mem :=
         if opcode == #LOAD {
             true
         } else {

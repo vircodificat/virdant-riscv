@@ -109,7 +109,11 @@ mod Cpu {
     control.opcode  := idecode.opcode;
     control.alu_z := alu.z[0];
 
-    alu.a := rf.rs1_out;
+    alu.a := if idecode.opcode == #AUIPC {
+        pc
+    } else {
+        rf.rs1_out
+    };
     alu.b := if control.alu_source_imm {
         idecode.imm
     } else {
@@ -120,13 +124,15 @@ mod Cpu {
     alu.funct7 := idecode.funct7;
     alu.is_op  := control.alu_is_op;
     alu.is_op_imm  := control.alu_is_op_imm;
+    alu.is_auipc  := idecode.opcode == #AUIPC;
 
     mem.adr_o := alu.z;
     mem.dat_o := zext(idecode.rs1);
     mem.we_o  := control.mem_write;
-    mem.stb_o := true;
-    mem.cyc_o := true;
-    rf.rd_in  := if control.wb_mem {
+    mem.stb_o := control.latch_rf_from_mem || control.mem_write;
+    mem.cyc_o := control.latch_rf_from_mem || control.mem_write;
+
+    rf.rd_in  := if control.latch_rf_from_mem {
         mem.dat_i
     } else if idecode.opcode == #LUI {
         idecode.imm

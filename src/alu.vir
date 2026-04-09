@@ -5,6 +5,7 @@ mod Alu {
 
     incoming is_op : Bit;
     incoming is_op_imm : Bit;
+    incoming is_auipc : Bit;
     incoming funct3 : Word[3];
     incoming funct7 : Word[7];
 
@@ -12,7 +13,9 @@ mod Alu {
     sum := a + b;
 
     z :=
-        if is_op {
+        if is_auipc {
+            a + b
+        } else if is_op {
             if funct3 == 0 {
                 if funct7[5] {
                     a - b

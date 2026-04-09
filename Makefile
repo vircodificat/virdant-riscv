@@ -2,8 +2,9 @@ ASM=loop.s
 HEX=build/$(ASM:.s=.hex)
 VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
 VIR_SOURCES := $(wildcard src/*.vir)
+SV_SOURCES := $(wildcard ext/*.sv)
 
-build/sim: sim.cpp $(VIR_SOURCES)
+build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
 	vir build
 	cp ext/* build/
 	verilator \
