@@ -1,8 +1,7 @@
 import rf;
 import alu;
 import control;
-import extend;
-import ifetch;
+import idecode;
 import wishbone;
 
 union type State {
@@ -20,6 +19,27 @@ mod Cpu {
     master socket instr of wishbone::Wishbone;
     master socket mem of wishbone::Wishbone;
 
+    reg pc : Word[32] on clock;
+    pc <=
+        if reset {
+            0w32
+        } else if control.set_pc {
+            next_pc
+        } else {
+            pc + 4w32
+        };
+
+    wire next_pc : Word[32];
+    next_pc :=
+        if idecode.opcode == #BRANCH {
+            pc + idecode.imm
+        } else if idecode.opcode == #JALR {
+            pc + alu.z
+        } else if idecode.opcode == #JAL {
+           pc + idecode.imm
+        } else {
+            0w32
+        };
 
     reg state : State on clock;
     if reset {
@@ -36,57 +56,41 @@ mod Cpu {
         };
     };
 
-    mod ifetch of ifetch::Ifetch;
+    mod idecode of idecode::IDecode;
     mod rf of rf::Rf;
     mod alu of alu::Alu;
     mod control of control::Control;
-    mod extend of extend::Extend;
 
-    ifetch.clock := clock;
     rf.clock := clock;
 
-    ifetch.reset := reset;
-    ifetch.set_pc := control.set_pc;
-    ifetch.instr_mem_instr := instr.dat_i;
-    instr.adr_o := ifetch.instr_mem_addr;
+    idecode.instr := instr.dat_i;
+    instr.adr_o := pc;
     instr.dat_o := 0w32;
     instr.we_o  := false;
     instr.stb_o := true;
     instr.cyc_o := true;
 
-    ifetch.next_pc :=
-        if ifetch.opcode == #BRANCH {
-            ifetch.pc + extend.out
-        } else if ifetch.opcode == #JALR {
-            ifetch.pc + alu.z
-        } else if ifetch.opcode == #JAL {
-           ifetch.pc + extend.out
-        } else {
-            0w32
-        };
+    rf.rd  := idecode.rd;
+    rf.rs1 := idecode.rs1;
+    rf.rs2 := idecode.rs2;
 
-    rf.rd  := ifetch.rd;
-    rf.rs1 := ifetch.rs1;
-    rf.rs2 := ifetch.rs2;
-
-    extend.instr   := ifetch.instr;
-    control.opcode  := ifetch.opcode;
+    control.opcode  := idecode.opcode;
     control.alu_z := alu.z[0];
 
     alu.a := rf.rs1_out;
     alu.b := if control.alu_source_imm {
-        extend.out
+        idecode.imm
     } else {
         rf.rs2_out
     };
 
-    alu.funct3 := ifetch.funct3;
-    alu.funct7 := ifetch.funct7;
+    alu.funct3 := idecode.funct3;
+    alu.funct7 := idecode.funct7;
     alu.is_op  := control.alu_is_op;
     alu.is_op_imm  := control.alu_is_op_imm;
 
     mem.adr_o := alu.z;
-    mem.dat_o := zext(ifetch.rs1);
+    mem.dat_o := zext(idecode.rs1);
     mem.we_o  := control.mem_write;
     mem.stb_o := true;
     mem.cyc_o := true;
@@ -95,6 +99,7 @@ mod Cpu {
     } else {
         alu.z
     };
+
     rf.write  := control.rf_write;
 
     is_break := control.is_system;

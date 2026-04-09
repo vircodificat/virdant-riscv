@@ -1,0 +1,49 @@
+import opcode;
+
+mod IDecode {
+    incoming instr : Word[32];
+
+    outgoing opcode : opcode::Opcode;
+
+    outgoing rd : Word[5];
+    outgoing rs1 : Word[5];
+    outgoing rs2 : Word[5];
+
+    outgoing funct3 : Word[3];
+    outgoing funct7 : Word[7];
+
+    outgoing imm : Word[32];
+
+    wire opcode_bits : Word[7];
+    opcode_bits := instr[7..0];
+    opcode :=
+        if opcode_bits ==  99 { #BRANCH }
+        else if opcode_bits ==  103 { #JALR }
+        else if opcode_bits ==  111 { #JAL }
+        else if opcode_bits ==  19 { #OP_IMM }
+        else if opcode_bits ==  51 { #OP }
+        else if opcode_bits ==  55 { #LUI }
+        else if opcode_bits ==  3 { #LOAD }
+        else if opcode_bits ==  115 { #SYSTEM }
+        else if opcode_bits ==  35 { #STORE }
+        else { #SYSTEM };
+
+    rd     := instr[12..7];
+    rs1    := instr[20..15];
+    rs2    := instr[25..20];
+    funct3 := instr[15..12];
+    funct7 := instr[32..25];
+
+    imm :=
+        if opcode_bits == 19 { // OP-IMM
+            sext(instr[32..20])
+        } else if opcode_bits == 55 { // LUI
+            word(instr[32..12], 0w12)
+        } else if opcode_bits == 99 { // BRANCH
+            sext(word(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
+        } else if opcode_bits == 111 { // JAL
+            sext(word(instr[31], instr[20..12], instr[20], instr[31..21], 0w1))
+        } else {
+            0w32
+        };
+}
