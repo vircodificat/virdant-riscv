@@ -25,6 +25,8 @@ mod Control {
             true
         } else if opcode == #OP {
             true
+        } else if opcode == #AUIPC {
+            true
         } else if opcode == #LUI {
             true
         } else if opcode == #LOAD {

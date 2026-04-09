@@ -26,6 +26,8 @@ mod IDecode {
         else if opcode_bits ==  3 { #LOAD }
         else if opcode_bits ==  115 { #SYSTEM }
         else if opcode_bits ==  35 { #STORE }
+        else if opcode_bits ==  23 { #AUIPC }
+        else if opcode_bits ==  15 { #FENCE }
         else { #SYSTEM };
 
     rd     := instr[12..7];

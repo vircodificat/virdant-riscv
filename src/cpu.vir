@@ -138,7 +138,7 @@ mod Cpu {
     };
 
     is_break := match state {
-        @Writeback() => control.is_system;
+        @Writeback() => idecode.opcode == #SYSTEM && idecode.funct3 == 0b000;
         else => false;
     };
 }

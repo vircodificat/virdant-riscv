@@ -5,7 +5,9 @@ enum type Opcode width 7 {
     OP_IMM = 19;
     OP     = 51;
     LUI    = 55;
+    AUIPC  = 23;
     LOAD   = 3;
     SYSTEM = 115;
     STORE  = 35;
+    FENCE  = 15;
 }
