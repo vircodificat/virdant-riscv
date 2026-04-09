@@ -11,3 +11,18 @@ enum type Opcode width 7 {
     STORE  = 35;
     FENCE  = 15;
 }
+
+enum type AluOpcode width 7 {
+    Zero = 0;
+    Add = 1;
+    Sub = 2;
+    And = 3;
+    Or  = 4;
+    Xor = 5;
+    Eq  = 6;
+    Neq = 7;
+    Lt  = 8;
+    Gte = 9;
+    Ltu  = 10;
+    Gteu = 11;
+}

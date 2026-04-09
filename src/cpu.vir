@@ -95,6 +95,10 @@ mod Cpu {
     mod alu of alu::Alu;
     mod control of control::Control;
 
+    alu.op := control.alu_op;
+    control.funct3 := idecode.funct3;
+    control.funct7 := idecode.funct7;
+
     rf.clock := clock;
 
     idecode.instr := instr;
@@ -120,14 +124,8 @@ mod Cpu {
         rf.rs2_out
     };
 
-    alu.funct3 := idecode.funct3;
-    alu.funct7 := idecode.funct7;
-    alu.is_op  := control.alu_is_op;
-    alu.is_op_imm  := control.alu_is_op_imm;
-    alu.is_auipc  := idecode.opcode == #AUIPC;
-
     mem.adr_o := alu.z;
-    mem.dat_o := zext(idecode.rs1);
+    mem.dat_o := rf.rs2_out;
     mem.we_o  := control.mem_write;
     mem.stb_o := control.latch_rf_from_mem || control.mem_write;
     mem.cyc_o := control.latch_rf_from_mem || control.mem_write;

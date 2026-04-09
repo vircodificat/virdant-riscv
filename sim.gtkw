@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Apr  9 16:04:47 2026
+[*] Thu Apr  9 16:49:15 2026
 [*]
 [dumpfile] "/home/vircodificat/projects/virdant-riscv/dump.vcd"
-[dumpfile_mtime] "Thu Apr  9 16:03:47 2026"
-[dumpfile_size] 29456
+[dumpfile_mtime] "Thu Apr  9 16:48:56 2026"
+[dumpfile_size] 28365
 [savefile] "/home/vircodificat/projects/virdant-riscv/sim.gtkw"
-[timestart] 370000
+[timestart] 322000
 [size] 1080 804
 [pos] -1 -1
-*-18.000000 612000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.000000 636000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.Top.
 [treeopen] TOP.Top.cpu.
@@ -45,12 +45,17 @@ TOP.Top.mem.\wb.cyc_o
 @22
 TOP.Top.mem.\wb.adr_o[31:0]
 TOP.Top.mem.\wb.dat_o[31:0]
-@29
+@28
 TOP.Top.mem.\wb.we_o
 @200
 -
 @22
 TOP.Top.cpu.idecode.instr[31:0]
+@28
+TOP.Top.cpu.idecode.funct3[2:0]
+@23
+TOP.Top.cpu.idecode.funct7[6:0]
+@22
 TOP.Top.cpu.idecode.rd[4:0]
 TOP.Top.cpu.idecode.rs1[4:0]
 TOP.Top.cpu.idecode.rs2[4:0]
@@ -98,6 +103,7 @@ TOP.Top.cpu.idecode.imm[31:0]
 @22
 TOP.Top.cpu.alu.a[31:0]
 TOP.Top.cpu.alu.b[31:0]
+TOP.Top.cpu.alu.op[6:0]
 TOP.Top.cpu.alu.z[31:0]
 @200
 -

@@ -2,14 +2,16 @@ import opcode;
 
 mod Control {
     incoming opcode : opcode::Opcode;
+    incoming funct3 : Word[3];
+    incoming funct7 : Word[7];
+
     incoming alu_z : Bit;
 
     outgoing rf_write : Bit;
     outgoing mem_write : Bit;
     outgoing latch_rf_from_mem : Bit;
     outgoing alu_source_imm : Bit;
-    outgoing alu_is_op : Bit;
-    outgoing alu_is_op_imm : Bit;
+    outgoing alu_op : opcode::AluOpcode;
     outgoing set_pc : Bit;
     outgoing is_system : Bit;
 
@@ -51,19 +53,9 @@ mod Control {
             true
         } else if opcode == #LUI {
             true
-        } else {
-            false
-        };
-
-    alu_is_op :=
-        if opcode == #OP {
+        } else if opcode == #LOAD {
             true
-        } else {
-            false
-        };
-
-    alu_is_op_imm :=
-        if opcode == #OP_IMM {
+        } else if opcode == #STORE {
             true
         } else {
             false
@@ -85,4 +77,75 @@ mod Control {
         };
 
     is_system := opcode == #SYSTEM;
+
+    alu_op :=
+        match opcode {
+            #AUIPC => #Add;
+            #LOAD => #Add;
+            #STORE => #Add;
+            #OP =>
+                if funct3 == 0 {
+                    if funct7[5] {
+                        #Sub
+                    } else {
+                        #Add
+                    }
+                } else if funct3 == 1 { // SLL
+                    #Zero
+                } else if funct3 == 2 { // SLT
+                    #Zero
+                } else if funct3 == 3 { // SLTU
+                    #Zero
+                } else if funct3 == 4 { // XOR
+                    #Xor
+                } else if funct3 == 5 { // SRL/A
+                    if funct7[5] { // SRA
+                        #Zero
+                    } else { // SRL
+                        #Zero
+                    }
+                } else if funct3 == 6 { // OR
+                    #Or
+                } else if funct3 == 7 { // AND
+                    #And
+                } else {
+                    #Zero
+                };
+            #OP_IMM =>
+                if funct3 == 0 {
+                    #Add
+                } else if funct3 == 1 { // SLL
+                    #Zero
+                } else if funct3 == 2 { // SLT
+                    #Zero
+                } else if funct3 == 3 { // SLTU
+                    #Zero
+                } else if funct3 == 4 { // XOR
+                    #Xor
+                } else if funct3 == 5 { // SRL/A
+                    #Zero
+                } else if funct3 == 6 { // OR
+                    #Or
+                } else if funct3 == 7 { // AND
+                    #And
+                } else {
+                    #Zero
+                };
+            #BRANCH =>
+                if funct3 == 0w3 { // BEQ
+                    #Eq
+                } else if funct3 == 1w3 { // BNE
+                    #Neq
+                } else if funct3 == 4w3 { // BLT
+                    #Lt
+                } else if funct3 == 5w3 { // BGE
+                    #Gte
+                } else if funct3 == 6w3 { // BLTU
+                    #Ltu
+                } else if funct3 == 7w3 { // BGEU
+                    #Gteu
+                } else {
+                    #Zero
+                };
+            };
 }
