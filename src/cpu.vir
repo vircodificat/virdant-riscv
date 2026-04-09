@@ -34,14 +34,7 @@ mod Cpu {
     };
 
     wire take_branch : Bit;
-    take_branch := if idecode.funct3 == 0b000 {
-        alu.z[0]
-    } else if idecode.funct3 == 0b000 {
-        !alu.z[0]
-    } else {
-        false
-    };
-
+    take_branch := alu.z[0];
 
     wire next_pc : Word[32];
     next_pc :=

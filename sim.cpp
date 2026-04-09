@@ -1,6 +1,8 @@
 #include "VTop.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
+#include <string>
+#include <vector>
 
 vluint64_t main_time = 0;
 vluint64_t clock_period_ns = 24;
@@ -33,7 +35,20 @@ void reset(VTop *top, VerilatedVcdC* tfp) {
 }
 
 int main(int argc, char** argv) {
-    Verilated::commandArgs(argc, argv);
+    // If a positional argument is given (not a flag/plusarg), treat it as the ROM hex file.
+    // Inject it as a +rom_hex=<file> plusarg so the SV $value$plusargs can pick it up.
+    std::vector<char*> new_argv;
+    std::string rom_hex_arg;
+    for (int i = 0; i < argc; i++) {
+        if (i > 0 && argv[i][0] != '+' && argv[i][0] != '-') {
+            rom_hex_arg = std::string("+rom_hex=") + argv[i];
+            new_argv.push_back(const_cast<char*>(rom_hex_arg.c_str()));
+        } else {
+            new_argv.push_back(argv[i]);
+        }
+    }
+    int new_argc = new_argv.size();
+    Verilated::commandArgs(new_argc, new_argv.data());
 
     VTop* top = new VTop;
 

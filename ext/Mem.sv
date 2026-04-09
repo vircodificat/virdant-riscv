@@ -30,6 +30,8 @@ module \mem::Rom (
     end
 
     initial begin
-        $readmemh("rom.hex", mem);
+        string rom_hex;
+        $value$plusargs("rom_hex=%s", rom_hex);
+        $readmemh(rom_hex, mem);
     end
 endmodule

@@ -7,9 +7,10 @@ _start:
 
 loop:
     addi t0, t0, -1 # 0x08
-    bnez t0, loop   # 0x0c
+    bnez t0, exit   # 0x0c
 
     addi t1, t1, 1  # 0x10
     jal loop        # 0x14
 
+exit:
     ebreak          # 0x1c

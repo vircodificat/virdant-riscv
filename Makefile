@@ -1,4 +1,5 @@
-ASM="loop.s"
+ASM=loop.s
+HEX=build/$(ASM:.s=.hex)
 VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
 VIR_SOURCES := $(wildcard src/*.vir)
 
@@ -22,18 +23,17 @@ build/sim: sim.cpp $(VIR_SOURCES)
 		-O2 \
 		-o build/sim
 
-rom.hex:
-	./asm2hex.sh $(ASM)
+build/%.hex: %.s
+	./asm2hex.sh $< $@
 
-run: build/sim rom.hex
-	./build/sim
+run: build/sim $(HEX)
+	./build/sim $(HEX)
 
 out.vcd: run
 
-wave: out.vcd rom.hex
+wave: out.vcd $(HEX)
 	gtkwave sim.gtkw
 
 clean:
 	rm -rf build/
-	rm -f rom.hex
 	rm -f out.vcd
