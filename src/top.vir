@@ -15,22 +15,10 @@ export mod Top {
 
     mod mem of mem::WbMem;
     mem.clock      := clock;
-    mem.wb.adr_o   := cpu.mem.adr_o;
-    mem.wb.dat_o   := cpu.mem.dat_o;
-    mem.wb.we_o    := cpu.mem.we_o;
-    mem.wb.stb_o   := cpu.mem.stb_o;
-    mem.wb.cyc_o   := cpu.mem.cyc_o;
-    cpu.mem.dat_i  := mem.wb.dat_i;
-    cpu.mem.ack_i  := mem.wb.ack_i;
+    mem.wb :=: cpu.mem;
 
     mod instr_mem of mem::WbRom;
-    instr_mem.wb.adr_o  := cpu.instr_mem.adr_o;
-    instr_mem.wb.dat_o  := cpu.instr_mem.dat_o;
-    instr_mem.wb.we_o   := cpu.instr_mem.we_o;
-    instr_mem.wb.stb_o  := cpu.instr_mem.stb_o;
-    instr_mem.wb.cyc_o  := cpu.instr_mem.cyc_o;
-    cpu.instr_mem.dat_i     := instr_mem.wb.dat_i;
-    cpu.instr_mem.ack_i     := instr_mem.wb.ack_i;
+    instr_mem.wb  :=: cpu.instr_mem;
 
     fin := cpu.is_break;
 }
