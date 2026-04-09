@@ -34,6 +34,11 @@ out.vcd: run
 wave: out.vcd $(HEX)
 	gtkwave sim.gtkw
 
+build_tests:
+	mkdir -p build
+	bash get_riscv_tests.sh
+
 clean:
 	rm -rf build/
 	rm -f out.vcd
+	rm -rf riscv-tests/
