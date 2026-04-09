@@ -18,7 +18,7 @@ mod WbRom {
 
     mod rom of Rom;
     rom.addr := wb.adr_o;
-    wb.dat_i := rom.instr;
+    wb.dat_i := if wb.cyc_o { rom.instr } else { 0 };
     wb.ack_i := wb.stb_o;
 }
 

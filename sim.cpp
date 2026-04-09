@@ -43,13 +43,14 @@ int main(int argc, char** argv) {
     tfp->open("out.vcd");
 
     top->reset = 1;
-    top->clock = 1;
+    top->clock = 0;
     top->eval();
     tfp->dump(main_time);
 
     reset(top, tfp);
 
-    for (;;) {
+    int max_cycles = 1000;
+    for (int i = 0; i < max_cycles; i++) {
         tick(top, tfp);
         if (top->fin) {
             break;

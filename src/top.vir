@@ -24,13 +24,13 @@ export mod Top {
     cpu.mem.ack_i  := mem.wb.ack_i;
 
     mod instr_mem of mem::WbRom;
-    instr_mem.wb.adr_o  := cpu.instr.adr_o;
-    instr_mem.wb.dat_o  := cpu.instr.dat_o;
-    instr_mem.wb.we_o   := cpu.instr.we_o;
-    instr_mem.wb.stb_o  := cpu.instr.stb_o;
-    instr_mem.wb.cyc_o  := cpu.instr.cyc_o;
-    cpu.instr.dat_i     := instr_mem.wb.dat_i;
-    cpu.instr.ack_i     := instr_mem.wb.ack_i;
+    instr_mem.wb.adr_o  := cpu.instr_mem.adr_o;
+    instr_mem.wb.dat_o  := cpu.instr_mem.dat_o;
+    instr_mem.wb.we_o   := cpu.instr_mem.we_o;
+    instr_mem.wb.stb_o  := cpu.instr_mem.stb_o;
+    instr_mem.wb.cyc_o  := cpu.instr_mem.cyc_o;
+    cpu.instr_mem.dat_i     := instr_mem.wb.dat_i;
+    cpu.instr_mem.ack_i     := instr_mem.wb.ack_i;
 
     fin := cpu.is_break;
 }

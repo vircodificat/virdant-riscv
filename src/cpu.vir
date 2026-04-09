@@ -5,8 +5,9 @@ import idecode;
 import wishbone;
 
 union type State {
+    Reset();
     Fetching();
-    Execute(instr: Word[32]);
+    Execute();
     Writeback();
 }
 
@@ -16,18 +17,21 @@ mod Cpu {
 
     outgoing is_break : Bit;
 
-    master socket instr of wishbone::Wishbone;
+    master socket instr_mem of wishbone::Wishbone;
     master socket mem of wishbone::Wishbone;
 
     reg pc : Word[32] on clock;
-    pc <=
-        if reset {
-            0w32
-        } else if control.set_pc {
-            next_pc
-        } else {
-            pc + 4w32
-        };
+    if reset {
+        pc <= 0w32;
+    } else if load_next_pc {
+        pc <= next_pc;
+    };
+
+    wire load_next_pc : Bit;
+    load_next_pc := match state {
+        @Writeback() => true;
+        else => false;
+    };
 
     wire next_pc : Word[32];
     next_pc :=
@@ -38,21 +42,48 @@ mod Cpu {
         } else if idecode.opcode == #JAL {
            pc + idecode.imm
         } else {
-            0w32
+            pc + 4
         };
+
+    reg instr : Word[32] on clock;
 
     reg state : State on clock;
     if reset {
-        state <= @Fetching();
+        state <= @Reset();
     } else {
-        state <= match state {
-            @Fetching() => if instr.ack_i {
-                @Execute(instr.dat_i)
-            } else {
-                @Fetching()
+        match state {
+            @Reset() => {
+                state <= @Fetching();
             };
-            @Execute(instr) => @Writeback();
-            @Writeback() => @Fetching();
+            @Fetching() => {
+                if instr_mem.ack_i {
+                    state <= @Execute();
+                    instr <= instr_mem.dat_i;
+                } else {
+                    state <= @Fetching();
+                };
+            };
+            @Execute() => {
+                state <= @Writeback();
+            };
+            @Writeback() => {
+                state <= @Fetching();
+            };
+        };
+    };
+
+    match state {
+        @Reset() => {
+            instr_mem.cyc_o := true;
+            instr_mem.stb_o := true;
+        };
+        @Fetching() => {
+            instr_mem.cyc_o := true;
+            instr_mem.stb_o := true;
+        };
+        else => {
+            instr_mem.cyc_o := false;
+            instr_mem.stb_o := false;
         };
     };
 
@@ -63,12 +94,10 @@ mod Cpu {
 
     rf.clock := clock;
 
-    idecode.instr := instr.dat_i;
-    instr.adr_o := pc;
-    instr.dat_o := 0w32;
-    instr.we_o  := false;
-    instr.stb_o := true;
-    instr.cyc_o := true;
+    idecode.instr := instr;
+    instr_mem.adr_o := pc;
+    instr_mem.dat_o := 0w32;
+    instr_mem.we_o  := false;
 
     rf.rd  := idecode.rd;
     rf.rs1 := idecode.rs1;
@@ -102,5 +131,8 @@ mod Cpu {
 
     rf.write  := control.rf_write;
 
-    is_break := control.is_system;
+    is_break := match state {
+        @Writeback() => control.is_system;
+        else => false;
+    };
 }
