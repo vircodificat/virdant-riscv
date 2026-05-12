@@ -1,28 +1,28 @@
 enum type Opcode width 7 {
-    BRANCH = 99;
-    JALR   = 103;
-    JAL    = 111;
-    OP_IMM = 19;
-    OP     = 51;
-    LUI    = 55;
-    AUIPC  = 23;
-    LOAD   = 3;
-    SYSTEM = 115;
-    STORE  = 35;
-    FENCE  = 15;
+    BRANCH = 99
+    JALR   = 103
+    JAL    = 111
+    OP_IMM = 19
+    OP     = 51
+    LUI    = 55
+    AUIPC  = 23
+    LOAD   = 3
+    SYSTEM = 115
+    STORE  = 35
+    FENCE  = 15
 }
 
 enum type AluOpcode width 7 {
-    Zero = 0;
-    Add = 1;
-    Sub = 2;
-    And = 3;
-    Or  = 4;
-    Xor = 5;
-    Eq  = 6;
-    Neq = 7;
-    Lt  = 8;
-    Gte = 9;
-    Ltu  = 10;
-    Gteu = 11;
+    Zero = 0
+    Add = 1
+    Sub = 2
+    And = 3
+    Or  = 4
+    Xor = 5
+    Eq  = 6
+    Neq = 7
+    Lt  = 8
+    Gte = 9
+    Ltu  = 10
+    Gteu = 11
 }

@@ -1,22 +1,22 @@
-import opcode;
+import opcode
 
 mod Control {
-    incoming opcode : opcode::Opcode;
-    incoming funct3 : Word[3];
-    incoming funct7 : Word[7];
+    incoming opcode : opcode::Opcode
+    incoming funct3 : Word[3]
+    incoming funct7 : Word[7]
 
-    outgoing rf_write : Bit;
-    outgoing mem_write : Bit;
-    outgoing latch_rf_from_mem : Bit;
-    outgoing alu_source_imm : Bit;
-    outgoing alu_op : opcode::AluOpcode;
+    outgoing rf_write : Bit
+    outgoing mem_write : Bit
+    outgoing latch_rf_from_mem : Bit
+    outgoing alu_source_imm : Bit
+    outgoing alu_op : opcode::AluOpcode
 
     mem_write :=
         if opcode == #STORE {
             true
         } else {
             false
-        };
+        }
 
     rf_write :=
         if opcode == #OP_IMM {
@@ -35,14 +35,14 @@ mod Control {
             true
         } else {
             false
-        };
+        }
 
     latch_rf_from_mem :=
         if opcode == #LOAD {
             true
         } else {
             false
-        };
+        }
 
     alu_source_imm :=
         if opcode == #OP_IMM {
@@ -55,14 +55,14 @@ mod Control {
             true
         } else {
             false
-        };
+        }
 
     alu_op :=
         match opcode {
-            #AUIPC => #Add;
-            #LOAD => #Add;
-            #STORE => #Add;
-            #OP =>
+            case #AUIPC => #Add
+            case #LOAD => #Add
+            case #STORE => #Add
+            case #OP =>
                 if funct3 == 0 {
                     if funct7[5] {
                         #Sub
@@ -89,8 +89,8 @@ mod Control {
                     #And
                 } else {
                     #Zero
-                };
-            #OP_IMM =>
+                }
+            case #OP_IMM =>
                 if funct3 == 0 {
                     #Add
                 } else if funct3 == 1 { // SLL
@@ -109,8 +109,8 @@ mod Control {
                     #And
                 } else {
                     #Zero
-                };
-            #BRANCH =>
+                }
+            case #BRANCH =>
                 if funct3 == 0w3 { // BEQ
                     #Eq
                 } else if funct3 == 1w3 { // BNE
@@ -125,6 +125,6 @@ mod Control {
                     #Gteu
                 } else {
                     #Zero
-                };
-            };
+                }
+            }
 }

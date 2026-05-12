@@ -1,24 +1,24 @@
-import cpu;
-import mem;
+import cpu
+import mem
 
 export mod Top {
-    incoming clock : Clock;
-    incoming reset : Bit;
-    outgoing fin : Bit;
+    incoming clock : Clock
+    incoming reset : Bit
+    outgoing fin : Bit
 
-    reg cycle : Word[32] on clock;
-    cycle <= if reset { 0w32 } else { cycle + 1w32 };
+    reg cycle : Word[32] on clock
+    cycle <= if reset { 0w32 } else { cycle + 1w32 }
 
-    mod cpu of cpu::Cpu;
-    cpu.clock := clock;
-    cpu.reset := reset;
+    mod cpu of cpu::Cpu
+    cpu.clock := clock
+    cpu.reset := reset
 
-    mod mem of mem::WbMem;
-    mem.clock      := clock;
-    mem.wb :=: cpu.mem;
+    mod mem of mem::WbMem
+    mem.clock      := clock
+    mem.wb :=: cpu.mem
 
-    mod instr_mem of mem::WbRom;
-    instr_mem.wb  :=: cpu.instr_mem;
+    mod instr_mem of mem::WbRom
+    instr_mem.wb  :=: cpu.instr_mem
 
-    fin := cpu.is_break;
+    fin := cpu.is_break
 }

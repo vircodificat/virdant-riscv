@@ -1,21 +1,21 @@
-import opcode;
+import opcode
 
 mod Alu {
-    incoming a : Word[32];
-    incoming b : Word[32];
-    outgoing z : Word[32];
+    incoming a : Word[32]
+    incoming b : Word[32]
+    outgoing z : Word[32]
 
-    incoming op : opcode::AluOpcode;
+    incoming op : opcode::AluOpcode
 
     z := match op {
-        #Add => a + b;
-        #Sub => a - b;
-        #And => a & b;
-        #Or  => a | b;
-        #Xor => a ^ b;
-        #Eq  => zext(a == b);
-        #Neq => zext(a != b);
-        #Lt  => zext(a < b);
-        #Gte => zext(a >= b);
-    };
+        case #Add => a + b
+        case #Sub => a - b
+        case #And => a & b
+        case #Or  => a | b
+        case #Xor => a ^ b
+        case #Eq  => zext(a == b)
+        case #Neq => zext(a != b)
+        case #Lt  => zext(a < b)
+        case #Gte => zext(a >= b)
+    }
 }

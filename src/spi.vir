@@ -1,55 +1,55 @@
 enum type State width 4 {
-    Idle = 1;
-    Send = 2;
-    Recv = 4;
-    Done = 8;
+    Idle = 1
+    Send = 2
+    Recv = 4
+    Done = 8
 }
 
 socket Spi {
-    mosi cs : Bit;
-    mosi clk : Bit;
-    mosi do : Bit;
-    miso di : Bit;
+    mosi cs : Bit
+    mosi clk : Bit
+    mosi do : Bit
+    miso di : Bit
 }
 
 mod SpiFlash {
-    incoming clock : Clock;
-    incoming reset : Bit;
+    incoming clock : Clock
+    incoming reset : Bit
 
-    master socket spi of Spi;
+    master socket spi of Spi
 
-    incoming mem_addr : Word[32];
-    incoming mem_read_enable : Bit;
+    incoming mem_addr : Word[32]
+    incoming mem_read_enable : Bit
 
-    outgoing mem_read_data : Word[32];
-    outgoing mem_read_data_valid : Bit;
+    outgoing mem_read_data : Word[32]
+    outgoing mem_read_data_valid : Bit
 
-    reg state : State on clock;
+    reg state : State on clock
 
-    reg send_buffer : Word[32] on clock;
-    reg recv_buffer : Word[32] on clock;
-    reg data : Word[32] on clock; // for DONE state
+    reg send_buffer : Word[32] on clock
+    reg recv_buffer : Word[32] on clock
+    reg data : Word[32] on clock // for DONE state
     data <=
         if half_clock {
             word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
         } else {
             data
-        };
+        }
 
-    reg bits_sent : Word[6] on clock;
-    reg bits_read : Word[6] on clock;
+    reg bits_sent : Word[6] on clock
+    reg bits_read : Word[6] on clock
 
-    reg half_clock : Bit on clock;
+    reg half_clock : Bit on clock
 
     half_clock <= if reset {
         false
     } else {
         !half_clock
-    };
+    }
 
-    reg spi_clk_reg : Bit on clock;
-    spi.clk := spi_clk_reg;
-    spi_clk_reg <= !spi_clk_reg;
+    reg spi_clk_reg : Bit on clock
+    spi.clk := spi_clk_reg
+    spi_clk_reg <= !spi_clk_reg
 
     state <=
         if reset {
@@ -76,7 +76,7 @@ mod SpiFlash {
             } else {
                 #Idle
             }
-        };
+        }
 
     send_buffer <=
         if half_clock {
@@ -89,7 +89,7 @@ mod SpiFlash {
             }
         } else {
             send_buffer
-        };
+        }
 
     recv_buffer <=
         if half_clock {
@@ -103,7 +103,7 @@ mod SpiFlash {
             }
         } else {
             recv_buffer
-        };
+        }
 
     bits_sent <=
         if half_clock {
@@ -116,7 +116,7 @@ mod SpiFlash {
             }
         } else {
             bits_sent
-        };
+        }
 
     bits_read <=
         if half_clock {
@@ -130,7 +130,7 @@ mod SpiFlash {
             }
         } else {
             bits_read
-        };
+        }
 
     spi.cs :=
         if reset {
@@ -141,7 +141,7 @@ mod SpiFlash {
             true
         } else {
             false
-        };
+        }
 
     spi.do :=
         if reset {
@@ -152,14 +152,14 @@ mod SpiFlash {
             } else {
                 true
             }
-        };
+        }
 
     mem_read_data :=
         if state == #Done { // DONE
             word(data[8..0], data[16..8], data[24..16], data[32..24])
         } else {
             0xffffffffw32
-        };
+        }
 
-    mem_read_data_valid := state == #Done; // DONE
+    mem_read_data_valid := state == #Done // DONE
 }
