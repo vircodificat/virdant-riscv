@@ -111,7 +111,6 @@ mod Cpu {
     rf.rs2 := idecode.rs2;
 
     control.opcode  := idecode.opcode;
-    control.alu_z := alu.z[0];
 
     alu.a := if idecode.opcode == #AUIPC {
         pc

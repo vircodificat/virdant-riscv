@@ -13,7 +13,7 @@ module \mem::Mem (
 
     always @(posedge clock) begin
         if (write) begin
-            $display("Mem write");
+            $display("Mem write: [0x%x] <= 0x%x", addr, data_in);
             mem[addr[11:2]] <= data_in;
         end
     end

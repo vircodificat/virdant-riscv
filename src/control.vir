@@ -5,15 +5,11 @@ mod Control {
     incoming funct3 : Word[3];
     incoming funct7 : Word[7];
 
-    incoming alu_z : Bit;
-
     outgoing rf_write : Bit;
     outgoing mem_write : Bit;
     outgoing latch_rf_from_mem : Bit;
     outgoing alu_source_imm : Bit;
     outgoing alu_op : opcode::AluOpcode;
-    outgoing set_pc : Bit;
-    outgoing is_system : Bit;
 
     mem_write :=
         if opcode == #STORE {
@@ -60,23 +56,6 @@ mod Control {
         } else {
             false
         };
-
-    set_pc :=
-        if alu_z {
-            if opcode == #BRANCH {
-                true
-            } else if opcode == #JALR {
-                true
-            } else if opcode == #JAL {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-    is_system := opcode == #SYSTEM;
 
     alu_op :=
         match opcode {
