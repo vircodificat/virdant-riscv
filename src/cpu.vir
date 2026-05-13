@@ -19,7 +19,6 @@ mod Cpu {
 
     client socket instr_mem of wishbone::Wishbone
     client socket mem of wishbone::Wishbone
-    drop mem.ack_i
 
     reg pc : Word[32] on clock
     if reset {
@@ -34,60 +33,48 @@ mod Cpu {
         else => false
     }
 
-    wire take_branch : Bit
-    take_branch := alu.z[0]
+    wire take_branch : Bit {
+        it := alu.z[0]
+    }
 
-    wire next_pc : Word[32]
-    next_pc :=
-        if idecode.opcode == #BRANCH && take_branch {
-            pc + idecode.imm
-        } else if idecode.opcode == #JALR {
-            rf.rs1_out + idecode.imm
-        } else if idecode.opcode == #JAL {
-           pc + idecode.imm
-        } else {
-            pc + 4
-        }
+    wire next_pc : Word[32] {
+        it :=
+            if idecode.opcode == #BRANCH && take_branch {
+                pc + idecode.imm
+            } else if idecode.opcode == #JALR {
+                rf.rs1_out + idecode.imm
+            } else if idecode.opcode == #JAL {
+               pc + idecode.imm
+            } else {
+                pc + 4
+            }
+    }
 
     reg instr : Word[32] on clock
 
-    reg state : State on clock
-    if reset {
-        state <= @Reset()
-    } else {
-        match state {
-            case @Reset() => {
-                state <= @Fetching()
-            }
-            case @Fetching() => {
-                if instr_mem.ack_i {
-                    state <= @Execute()
-                    instr <= instr_mem.dat_i
-                } else {
+    reg state : State on clock {
+        if reset {
+            state <= @Reset()
+        } else {
+            match state {
+                case @Reset() => {
+                    state <= @Fetching()
+                }
+                case @Fetching() => {
+                    if instr_mem.ack_i {
+                        state <= @Execute()
+                        instr <= instr_mem.dat_i
+                    } else {
+                        state <= @Fetching()
+                    }
+                }
+                case @Execute() => {
+                    state <= @Writeback()
+                }
+                case @Writeback() => {
                     state <= @Fetching()
                 }
             }
-            case @Execute() => {
-                state <= @Writeback()
-            }
-            case @Writeback() => {
-                state <= @Fetching()
-            }
-        }
-    }
-
-    match state {
-        case @Reset() => {
-            instr_mem.cyc_o := true
-            instr_mem.stb_o := true
-        }
-        case @Fetching() => {
-            instr_mem.cyc_o := true
-            instr_mem.stb_o := true
-        }
-        else => {
-            instr_mem.cyc_o := false
-            instr_mem.stb_o := false
         }
     }
 
@@ -144,13 +131,29 @@ mod Cpu {
         alu.z
     }
 
-    rf.write  := match state {
-        case @Writeback() => control.rf_write
-        else => false
+    match state {
+        case @Reset() => {
+            instr_mem.cyc_o := true
+            instr_mem.stb_o := true
+        }
+        case @Fetching() => {
+            instr_mem.cyc_o := true
+            instr_mem.stb_o := true
+        }
+        else => {
+            instr_mem.cyc_o := false
+            instr_mem.stb_o := false
+        }
     }
 
-    is_break := match state {
-        case @Writeback() => idecode.opcode == #SYSTEM && idecode.funct3 == 0b000
-        else => false
+    match state {
+        case @Writeback() => {
+            rf.write := control.rf_write
+            is_break := idecode.opcode == #SYSTEM && idecode.funct3 == 0b000
+        }
+        else => {
+            rf.write := false
+            is_break := false
+        }
     }
 }
