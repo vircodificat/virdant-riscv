@@ -1,9 +1,9 @@
 socket Wishbone {
-    mosi adr_o : Word[32]
-    mosi dat_o : Word[32]
-    miso dat_i : Word[32]
-    mosi we_o  : Bit
-    mosi stb_o : Bit
-    mosi cyc_o : Bit
-    miso ack_i : Bit
+    cosi adr_o : Word[32]
+    cosi dat_o : Word[32]
+    ciso dat_i : Word[32]
+    cosi we_o  : Bit
+    cosi stb_o : Bit
+    cosi cyc_o : Bit
+    ciso ack_i : Bit
 }

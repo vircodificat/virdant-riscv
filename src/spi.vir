@@ -6,17 +6,17 @@ enum type State width 4 {
 }
 
 socket Spi {
-    mosi cs : Bit
-    mosi clk : Bit
-    mosi do : Bit
-    miso di : Bit
+    cosi cs : Bit
+    cosi clk : Bit
+    cosi do : Bit
+    ciso di : Bit
 }
 
 mod SpiFlash {
     incoming clock : Clock
     incoming reset : Bit
 
-    master socket spi of Spi
+    client socket spi of Spi
 
     incoming mem_addr : Word[32]
     incoming mem_read_enable : Bit

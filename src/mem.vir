@@ -2,7 +2,7 @@ import wishbone
 
 mod WbMem {
     incoming clock : Clock
-    slave socket wb of wishbone::Wishbone
+    server socket wb of wishbone::Wishbone
 
     mod mem of Mem
     mem.clock   := clock
@@ -14,7 +14,9 @@ mod WbMem {
 }
 
 mod WbRom {
-    slave socket wb of wishbone::Wishbone
+    server socket wb of wishbone::Wishbone
+    drop wb.we_o
+    drop wb.dat_o
 
     mod rom of Rom
     rom.addr := wb.adr_o

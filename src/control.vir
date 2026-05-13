@@ -45,16 +45,12 @@ mod Control {
         }
 
     alu_source_imm :=
-        if opcode == #OP_IMM {
-            true
-        } else if opcode == #LUI {
-            true
-        } else if opcode == #LOAD {
-            true
-        } else if opcode == #STORE {
-            true
-        } else {
-            false
+        match opcode {
+            case #OP_IMM => true
+            case #LUI => true
+            case #LOAD => true
+            case #STORE => true
+            else => false
         }
 
     alu_op :=
@@ -126,5 +122,5 @@ mod Control {
                 } else {
                     #Zero
                 }
-            }
+        }
 }

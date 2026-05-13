@@ -17,8 +17,9 @@ mod Cpu {
 
     outgoing is_break : Bit
 
-    master socket instr_mem of wishbone::Wishbone
-    master socket mem of wishbone::Wishbone
+    client socket instr_mem of wishbone::Wishbone
+    client socket mem of wishbone::Wishbone
+    drop mem.ack_i
 
     reg pc : Word[32] on clock
     if reset {
