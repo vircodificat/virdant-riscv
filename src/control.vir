@@ -5,56 +5,47 @@ mod Control {
     incoming funct3 : Word[3]
     incoming funct7 : Word[7]
 
-    outgoing rf_write : Bit
-    outgoing mem_write : Bit
-    outgoing latch_rf_from_mem : Bit
-    outgoing alu_source_imm : Bit
-    outgoing alu_op : opcode::AluOpcode
-
-    mem_write :=
-        if opcode == #STORE {
+    outgoing mem_write : Bit {
+        it := if opcode == #STORE {
             true
         } else {
             false
         }
+    }
 
-    rf_write :=
-        if opcode == #OP_IMM {
-            true
-        } else if opcode == #OP {
-            true
-        } else if opcode == #AUIPC {
-            true
-        } else if opcode == #LUI {
-            true
-        } else if opcode == #LOAD {
-            true
-        } else if opcode == #JALR {
-            true
-        } else if opcode == #JAL {
+    outgoing rf_write : Bit {
+        it := match opcode {
+            case #OP_IMM => true
+            case #OP => true
+            case #AUIPC => true
+            case #LUI => true
+            case #JALR => true
+            case #JAL => true
+            case #LOAD => true
+            else => false
+        }
+    }
+
+    outgoing latch_rf_from_mem : Bit {
+        it := if opcode == #LOAD {
             true
         } else {
             false
         }
+    }
 
-    latch_rf_from_mem :=
-        if opcode == #LOAD {
-            true
-        } else {
-            false
-        }
-
-    alu_source_imm :=
-        match opcode {
+    outgoing alu_source_imm : Bit {
+        it := match opcode {
             case #OP_IMM => true
             case #LUI => true
             case #LOAD => true
             case #STORE => true
             else => false
         }
+    }
 
-    alu_op :=
-        match opcode {
+    outgoing alu_op : opcode::AluOpcode {
+        it := match opcode {
             case #AUIPC => #Add
             case #LOAD => #Add
             case #STORE => #Add
@@ -122,5 +113,7 @@ mod Control {
                 } else {
                     #Zero
                 }
+            else => #Zero
         }
+    }
 }

@@ -17,5 +17,8 @@ mod Alu {
         case #Neq => zext(a != b)
         case #Lt  => zext(a < b)
         case #Gte => zext(a >= b)
+        case #Zero => 0
+        case #Ltu => zext(a < b)
+        case #Gteu => zext(a >= b)
     }
 }
