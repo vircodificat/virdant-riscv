@@ -13,7 +13,7 @@ union type State {
 
 mod Cpu {
     incoming clock : Clock
-    incoming reset : Bit
+    incoming reset : Reset
 
     outgoing is_break : Bit
 

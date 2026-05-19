@@ -39,7 +39,7 @@ ext mod Rom {
 
 mod TLMem {
     incoming clock : Clock
-    incoming reset : Bit
+    incoming reset : Reset
 
     // A Channel
     incoming a_valid : Bit

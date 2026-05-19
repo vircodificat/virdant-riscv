@@ -3,7 +3,7 @@ import mem
 
 export mod Top {
     incoming clock : Clock
-    incoming reset : Bit
+    incoming reset : Reset
 
     reg cycle : Word[32] on clock
     cycle <= if reset { 0w32 } else { cycle + 1w32 }

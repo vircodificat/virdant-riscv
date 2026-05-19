@@ -14,7 +14,7 @@ socket Spi {
 
 mod SpiFlash {
     incoming clock : Clock
-    incoming reset : Bit
+    incoming reset : Reset
 
     client socket spi of Spi
 
