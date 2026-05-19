@@ -74,7 +74,6 @@ mod Cpu {
                     it <= @Fetching()
                 }
                 case @Fetching() => {
-                    control.is_fetching := true
                     it <= @Execute()
                     instr <= instr_mem.dat_rd
                 }
@@ -87,6 +86,11 @@ mod Cpu {
                 }
             }
         }
+    }
+
+    control.is_fetching := match state {
+        case @Fetching() => true
+        else => false
     }
 
     mod idecode of idecode::IDecode {
