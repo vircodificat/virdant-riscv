@@ -89,7 +89,7 @@ mod Control {
                         } else {
                             #Add
                         }
-                    case 1 => #Zero // SLL
+                    case 1 => #Sll // SLL
                     case 2 => #Zero // SLT
                     case 3 => #Zero // SLTU
                     case 4 => #Xor
@@ -105,7 +105,7 @@ mod Control {
             case #OP_IMM =>
                 match funct3 {
                     case 0 => #Add
-                    case 1 => #Zero // SLL
+                    case 1 => #Sll // SLL
                     case 2 => #Zero // SLT
                     case 3 => #Zero // SLTU
                     case 4 => #Xor

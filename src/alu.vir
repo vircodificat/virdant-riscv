@@ -7,6 +7,12 @@ mod Alu {
 
     incoming op : opcode::AluOpcode
 
+    mod shifter of Shifter {
+        it.a := a
+        it.amount := b[5..0]
+        it.dir := #ShiftLeftLogical
+    }
+
     z := match op {
         case #Add => a + b
         case #Sub => a - b
@@ -15,10 +21,75 @@ mod Alu {
         case #Xor => a ^ b
         case #Eq  => zext(a == b)
         case #Neq => zext(a != b)
-        case #Lt  => zext(a < b)
-        case #Gte => zext(a >= b)
+        case #Lt  => if a[31] ^ b[31] { zext(a[31]) } else { zext(a < b) }
+        case #Gte => if a[31] ^ b[31] { zext(b[31]) } else { zext(a >= b) }
         case #Zero => 0
         case #Ltu => zext(a < b)
         case #Gteu => zext(a >= b)
+        case #Sll => shifter.z
+    }
+}
+
+enum type ShiftDirection width 3 {
+    ShiftLeftLogical     = 0b001
+    ShiftRightLogical    = 0b010
+    ShiftRightArithmetic = 0b100
+}
+
+mod Shifter {
+    incoming dir : ShiftDirection
+    incoming a : Word[32]
+    incoming amount : Word[5]
+    outgoing z : Word[32]
+
+    wire sll_1 : Word[32]
+    sll_1 := if amount[0] { word(a[31..0], 0w1) } else { a }
+
+    wire sll_2 : Word[32]
+    sll_2 := if amount[1] { word(sll_1[30..0], 0w2) } else { sll_1 }
+
+    wire sll_4 : Word[32]
+    sll_4 := if amount[2] { word(sll_2[28..0], 0w4) } else { sll_2 }
+
+    wire sll_8 : Word[32]
+    sll_8 := if amount[3] { word(sll_4[24..0], 0w8) } else { sll_4 }
+
+    wire sll_16 : Word[32]
+    sll_16 := if amount[4] { word(sll_8[16..0], 0w16) } else { sll_8 }
+
+    wire srl_1 : Word[32]
+    srl_1 := if amount[0] { zext(a[31..1]) } else { a }
+
+    wire srl_2 : Word[32]
+    srl_2 := if amount[1] { zext(srl_1[31..2]) } else { srl_1 }
+
+    wire srl_4 : Word[32]
+    srl_4 := if amount[2] { zext(srl_2[31..4]) } else { srl_2 }
+
+    wire srl_8 : Word[32]
+    srl_8 := if amount[3] { zext(srl_4[31..8]) } else { srl_4 }
+
+    wire srl_16 : Word[32]
+    srl_16 := if amount[4] { zext(srl_8[31..16]) } else { srl_8 }
+
+    wire sra_1 : Word[32]
+    sra_1 := if amount[0] { sext(a[32..1]) } else { a }
+
+    wire sra_2 : Word[32]
+    sra_2 := if amount[1] { sext(sra_1[32..2]) } else { sra_1 }
+
+    wire sra_4 : Word[32]
+    sra_4 := if amount[2] { sext(sra_2[32..4]) } else { sra_2 }
+
+    wire sra_8 : Word[32]
+    sra_8 := if amount[3] { sext(sra_4[32..8]) } else { sra_4 }
+
+    wire sra_16 : Word[32]
+    sra_16 := if amount[4] { sext(sra_8[32..16]) } else { sra_8 }
+
+    z := match dir {
+        case #ShiftLeftLogical => sll_16
+        case #ShiftRightLogical => srl_16
+        case #ShiftRightArithmetic => sra_16
     }
 }

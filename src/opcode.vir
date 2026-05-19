@@ -25,4 +25,5 @@ enum type AluOpcode width 7 {
     Gte = 9
     Ltu  = 10
     Gteu = 11
+    Sll = 12
 }
