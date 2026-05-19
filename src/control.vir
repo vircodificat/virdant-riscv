@@ -29,7 +29,7 @@ mod Control {
     }
 
     outgoing mem_strobe : Bit {
-        it := opcode == #LOAD || opcode == #STORE
+        it := is_fetching || opcode == #LOAD || opcode == #STORE
     }
 
     outgoing take_branch : Bit {
@@ -133,11 +133,9 @@ mod Control {
     }
 
     incoming mem_ack : Bit
-    incoming instr_mem_ack : Bit
-    unused instr_mem_ack
 
     outgoing stall : Bit {
-        it := (opcode == #LOAD && !mem_ack) || (is_fetching && !instr_mem_ack)
+        it := (opcode == #LOAD && !mem_ack) || (is_fetching && !mem_ack)
     }
 
     incoming is_fetching : Bit

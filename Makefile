@@ -8,6 +8,7 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
 	vir build
 	cp ext/* build/
 	verilator \
+		--sv \
 		--cc build/*.sv \
 		--Mdir build \
 		--top-module Top \
@@ -16,18 +17,21 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
 	g++ \
 		-Ibuild/ \
 		-I$(VERILATOR_ROOT)/include \
+		-I$(VERILATOR_ROOT)/include/vltstd \
 		$(VERILATOR_ROOT)/include/verilated_vcd_c.cpp \
 		sim.cpp \
 		build/verilated.o \
 		build/verilated_threads.o \
 		build/VTop__ALL.o \
 		-O2 \
+		-lelf \
 		-o build/sim
 
 build/%.hex: %.s
 	./asm2hex.sh $< $@
 
 run: build/sim $(HEX)
+	echo $(HEX)
 	./build/sim $(HEX)
 
 out.vcd: run

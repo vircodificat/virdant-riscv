@@ -11,15 +11,12 @@ export mod Top {
     mod cpu of cpu::Cpu {
         it.clock := clock
         it.reset := reset
-        it.instr_mem :=: instr_mem.wb
         it.mem :=: mem.wb
     }
 
     mod mem of mem::WbMem {
         it.clock := clock
     }
-
-    mod instr_mem of mem::WbRom
 
     outgoing fin : Bit {
         it := cpu.is_break

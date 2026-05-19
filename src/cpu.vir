@@ -17,21 +17,9 @@ mod Cpu {
 
     mod control of control::Control
 
-    client socket instr_mem of wishbone::Wishbone {
-        unused it.err
-
-        it.adr    := pc
-        it.sel    := 0b1111w4
-        it.dat_wr := 0w32
-        it.we     := false
-
-        control.instr_mem_ack := it.ack
-    }
-
     client socket mem of wishbone::Wishbone {
         unused it.err
 
-        it.adr := alu.z
         it.sel := control.mem_sel
         it.dat_wr := rf.rs2_out
 
@@ -43,7 +31,7 @@ mod Cpu {
 
     reg pc : Word[32] on clock {
         if reset {
-            it <= 0w32
+            it <= 0x80000000w32
         } else if state == @Writeback() {
             it <= next_pc
         }
@@ -75,10 +63,12 @@ mod Cpu {
                 }
                 case @Fetching() => {
                     it <= @Execute()
-                    instr <= instr_mem.dat_rd
+                    mem.adr := pc
+                    instr <= mem.dat_rd
                 }
                 case @Execute() => {
                     it <= @Writeback()
+                    mem.adr := alu.z
                     mem_buffer <= mem.dat_rd
                 }
                 case @Writeback() => {
@@ -131,21 +121,6 @@ mod Cpu {
         }
 
         control.alu_z := it.z
-    }
-
-    match state {
-        case @Reset() => {
-            instr_mem.cyc := true
-            instr_mem.stb := true
-        }
-        case @Fetching() => {
-            instr_mem.cyc := true
-            instr_mem.stb := true
-        }
-        else => {
-            instr_mem.cyc := false
-            instr_mem.stb := false
-        }
     }
 
     outgoing is_break : Bit {
