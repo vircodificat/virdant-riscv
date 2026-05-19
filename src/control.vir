@@ -1,16 +1,39 @@
 import opcode
 
+enum type AluSourceA width 2 {
+    Rs1 = 0b01
+    Pc  = 0b10
+}
+
+enum type AluSourceB width 2 {
+    Rs2 = 0b01
+    Imm = 0b10
+}
+
+enum type RdSource width 5 {
+    Mem       = 0b00001w5
+    Imm       = 0b00010w5
+    PcPlusImm = 0b00100w5
+    PcPlus4   = 0b01000w5
+    AluZ      = 0b10000w5
+}
+
 mod Control {
     incoming opcode : opcode::Opcode
     incoming funct3 : Word[3]
     incoming funct7 : Word[7]
+    incoming alu_z  : Word[32]
 
     outgoing mem_write : Bit {
-        it := if opcode == #STORE {
-            true
-        } else {
-            false
-        }
+        it := opcode == #STORE
+    }
+
+    outgoing mem_strobe : Bit {
+        it := opcode == #LOAD || opcode == #STORE
+    }
+
+    outgoing take_branch : Bit {
+        it := opcode == #BRANCH && alu_z[0]
     }
 
     outgoing rf_write : Bit {
@@ -26,21 +49,30 @@ mod Control {
         }
     }
 
-    outgoing latch_rf_from_mem : Bit {
-        it := if opcode == #LOAD {
-            true
-        } else {
-            false
+    outgoing rd_source : RdSource {
+        it := match opcode {
+            case #LOAD  => #Mem
+            case #LUI   => #Imm
+            case #AUIPC => #PcPlusImm
+            case #JAL   => #PcPlus4
+            case #JALR  => #PcPlus4
+            else        => #AluZ
         }
     }
 
-    outgoing alu_source_imm : Bit {
+    outgoing alu_source_a : AluSourceA {
         it := match opcode {
-            case #OP_IMM => true
-            case #LUI => true
-            case #LOAD => true
-            case #STORE => true
-            else => false
+            case #AUIPC  => #Pc
+            else => #Rs1
+        }
+    }
+    outgoing alu_source_b : AluSourceB {
+        it := match opcode {
+            case #OP_IMM => #Imm
+            case #LUI    => #Imm
+            case #LOAD   => #Imm
+            case #STORE  => #Imm
+            else         => #Rs2
         }
     }
 
@@ -50,70 +82,53 @@ mod Control {
             case #LOAD => #Add
             case #STORE => #Add
             case #OP =>
-                if funct3 == 0 {
-                    if funct7[5] {
-                        #Sub
-                    } else {
-                        #Add
-                    }
-                } else if funct3 == 1 { // SLL
-                    #Zero
-                } else if funct3 == 2 { // SLT
-                    #Zero
-                } else if funct3 == 3 { // SLTU
-                    #Zero
-                } else if funct3 == 4 { // XOR
-                    #Xor
-                } else if funct3 == 5 { // SRL/A
-                    if funct7[5] { // SRA
-                        #Zero
-                    } else { // SRL
-                        #Zero
-                    }
-                } else if funct3 == 6 { // OR
-                    #Or
-                } else if funct3 == 7 { // AND
-                    #And
-                } else {
-                    #Zero
+                match funct3 {
+                    case 0 =>
+                        if funct7[5] {
+                            #Sub
+                        } else {
+                            #Add
+                        }
+                    case 1 => #Zero // SLL
+                    case 2 => #Zero // SLT
+                    case 3 => #Zero // SLTU
+                    case 4 => #Xor
+                    case 5 =>       // SLR/A
+                        if funct7[5] { // SRA
+                            #Zero
+                        } else { // SRL
+                            #Zero
+                        }
+                    case 6 => #Or // OR
+                    case 7 => #And // SLT
                 }
             case #OP_IMM =>
-                if funct3 == 0 {
-                    #Add
-                } else if funct3 == 1 { // SLL
-                    #Zero
-                } else if funct3 == 2 { // SLT
-                    #Zero
-                } else if funct3 == 3 { // SLTU
-                    #Zero
-                } else if funct3 == 4 { // XOR
-                    #Xor
-                } else if funct3 == 5 { // SRL/A
-                    #Zero
-                } else if funct3 == 6 { // OR
-                    #Or
-                } else if funct3 == 7 { // AND
-                    #And
-                } else {
-                    #Zero
+                match funct3 {
+                    case 0 => #Add
+                    case 1 => #Zero // SLL
+                    case 2 => #Zero // SLT
+                    case 3 => #Zero // SLTU
+                    case 4 => #Xor
+                    case 5 => #Zero // SRL/A
+                    case 6 => #Or
+                    case 7 => #And
                 }
             case #BRANCH =>
-                if funct3 == 0w3 { // BEQ
-                    #Eq
-                } else if funct3 == 1w3 { // BNE
-                    #Neq
-                } else if funct3 == 4w3 { // BLT
-                    #Lt
-                } else if funct3 == 5w3 { // BGE
-                    #Gte
-                } else if funct3 == 6w3 { // BLTU
-                    #Ltu
-                } else if funct3 == 7w3 { // BGEU
-                    #Gteu
-                } else {
-                    #Zero
+                match funct3 {
+                    case 0 => #Eq
+                    case 1 => #Neq
+                    case 2 => #Zero
+                    case 3 => #Zero
+                    case 4 => #Lt
+                    case 5 => #Gte
+                    case 6 => #Ltu
+                    case 7 => #Gteu
                 }
             else => #Zero
         }
+    }
+
+    outgoing mem_sel : Word[4] {
+        it := 0b1111w4
     }
 }

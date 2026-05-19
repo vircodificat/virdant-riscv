@@ -5,4 +5,3 @@ _start:
     li t0, 0
     li t1, 0x10
     ebreak
-

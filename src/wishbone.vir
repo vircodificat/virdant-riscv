@@ -1,9 +1,288 @@
+// Wishbone 2x2 Crossbar
+//
+// Connects two Wishbone masters to two Wishbone slaves with full
+// non-blocking crossbar connectivity.
+// Address bit 31 selects the slave (0 -> slave_0, 1 -> slave_1).
+// When both masters target the same slave simultaneously,
+// a round-robin arbiter resolves the conflict.
+//
+// Internal structure:
+//
+//   master_0 --> [ mux_0 ] --slave_0--> [ arb_0 ] --> slave_0
+//                         --slave_1--> [ arb_1 ] --> slave_1
+//   master_1 --> [ mux_1 ] --slave_0--> [ arb_0 ]
+//                         --slave_1--> [ arb_1 ]
+//
+// Concepts demonstrated:
+//   - composing WbMux12 and WbArb21 into a larger fabric
+//   - all inter-module wiring done exclusively with socket bulk connect (:=:)
+//   - forwarding top-level sockets down through the hierarchy
+
+// Wishbone channel directions are from the master perspective.
+// cosi = Client-Out, Server-In: the master drives these signals.
+// ciso = Client-In,  Server-Out: the slave drives these signals.
 socket Wishbone {
-    cosi adr_o : Word[32]
-    cosi dat_o : Word[32]
-    ciso dat_i : Word[32]
-    cosi we_o  : Bit
-    cosi stb_o : Bit
-    cosi cyc_o : Bit
-    ciso ack_i : Bit
+    cosi cyc     : Bit         // master: cycle active
+    cosi stb     : Bit         // master: strobe (data phase)
+    cosi we      : Bit         // master: write enable
+    cosi adr     : Word[32]    // master: address
+    cosi dat_wr  : Word[32]    // master: write data
+    cosi sel     : Word[4]     // master: byte select mask
+
+    ciso ack     : Bit         // slave: transfer acknowledgement
+    ciso err     : Bit         // slave: error response
+    ciso dat_rd  : Word[32]    // slave: read data
+}
+
+// --- Shared building blocks --------------------------------------------------
+
+union type Serving {
+    Idle()
+    ServingMaster0()
+    ServingMaster1()
+}
+
+union type Priority {
+    Master0First()
+    Master1First()
+}
+
+union type SelState {
+    Slave0()
+    Slave1()
+}
+
+// WbArb21 -- 2-to-1 Wishbone round-robin arbiter.
+mod WbArb21 {
+    incoming clock : Clock
+    incoming reset : Bit
+
+    server socket master_0 of Wishbone
+    server socket master_1 of Wishbone
+
+    wire m0_cyc : Bit
+    m0_cyc := master_0.cyc
+    wire m1_cyc : Bit
+    m1_cyc := master_1.cyc
+    wire m0_stb : Bit
+    m0_stb := master_0.stb
+    wire m1_stb : Bit
+    m1_stb := master_1.stb
+    wire m0_we : Bit
+    m0_we := master_0.we
+    wire m1_we : Bit
+    m1_we := master_1.we
+    wire m0_adr : Word[32]
+    m0_adr := master_0.adr
+    wire m1_adr : Word[32]
+    m1_adr := master_1.adr
+    wire m0_dat_wr : Word[32]
+    m0_dat_wr := master_0.dat_wr
+    wire m1_dat_wr : Word[32]
+    m1_dat_wr := master_1.dat_wr
+    wire m0_sel : Word[4]
+    m0_sel := master_0.sel
+    wire m1_sel : Word[4]
+    m1_sel := master_1.sel
+
+    client socket slave_0 of Wishbone {
+        it.cyc  := (grant_0 && m0_cyc) || (grant_1 && m1_cyc)
+        it.stb  := (grant_0 && m0_stb) || (grant_1 && m1_stb)
+
+        if grant_0 {
+            it.we     := m0_we
+            it.adr    := m0_adr
+            it.dat_wr := m0_dat_wr
+            it.sel    := m0_sel
+        } else {
+            it.we     :=  m1_we
+            it.adr    :=  m1_adr
+            it.dat_wr :=  m1_dat_wr
+            it.sel    :=  m1_sel
+        }
+
+        master_0.ack     := it.ack && grant_0
+        master_1.ack     := it.ack && grant_1
+        master_0.err     := it.err && grant_0
+        master_1.err     := it.err && grant_1
+        master_0.dat_rd  := it.dat_rd
+        master_1.dat_rd  := it.dat_rd
+    }
+
+    reg serving : Serving on clock
+    reg priority : Priority on clock
+
+    wire idle_grant_0 : Bit
+    wire idle_grant_1 : Bit
+
+    match priority {
+        case @Master0First() => {
+            idle_grant_0 := m0_cyc
+            idle_grant_1 := m1_cyc && !m0_cyc
+        }
+        case @Master1First() => {
+            idle_grant_0 := m0_cyc && !m1_cyc
+            idle_grant_1 := m1_cyc
+        }
+    }
+
+    wire grant_0 : Bit
+    wire grant_1 : Bit
+
+    match serving {
+        case @Idle() => {
+            grant_0 := idle_grant_0
+            grant_1 := idle_grant_1
+        }
+        case @ServingMaster0() => {
+            grant_0 := true
+            grant_1 := false
+        }
+        case @ServingMaster1() => {
+            grant_0 := false
+            grant_1 := true
+        }
+    }
+
+    wire cyc_done : Bit {
+        it := (slave_0.ack || slave_0.err) && ((grant_0 && !m0_cyc) || (grant_1 && !m1_cyc))
+    }
+
+    serving <= if reset {
+        @Idle()
+    } else {
+        match serving {
+            case @Idle() =>
+                if idle_grant_0 { @ServingMaster0() }
+                else if idle_grant_1 { @ServingMaster1() }
+                else { @Idle() }
+            case @ServingMaster0() =>
+                if cyc_done { @Idle() } else { @ServingMaster0() }
+            case @ServingMaster1() =>
+                if cyc_done { @Idle() } else { @ServingMaster1() }
+        }
+    }
+
+    if reset {
+        priority <= @Master0First()
+    } else {
+        if cyc_done {
+            match serving {
+                case @ServingMaster0() => {
+                    priority <= @Master1First()
+                }
+                case @ServingMaster1() => {
+                    priority <= @Master0First()
+                }
+            }
+        }
+    }
+}
+
+// WbMux12 -- 1-to-2 Wishbone address-space multiplexer.
+mod WbMux12 {
+    incoming clock : Clock
+    incoming reset : Bit
+
+    client socket slave_0 of Wishbone
+    client socket slave_1 of Wishbone
+
+    wire sel : Bit {
+        it := master_0.adr[31]
+    }
+
+    server socket master_0 of Wishbone {
+        slave_0.cyc  := it.cyc && !sel
+        slave_0.stb  := it.stb && !sel
+        slave_0.we   := it.we
+        slave_0.adr  := it.adr
+        slave_0.dat_wr := it.dat_wr
+        slave_0.sel  := it.sel
+
+        slave_1.cyc  := it.cyc &&  sel
+        slave_1.stb  := it.stb &&  sel
+        slave_1.we   := it.we
+        slave_1.adr  := it.adr
+        slave_1.dat_wr := it.dat_wr
+        slave_1.sel  := it.sel
+
+        it.ack := if sel { slave_1.ack } else { slave_0.ack }
+        it.err := if sel { slave_1.err } else { slave_0.err }
+
+        if serving_slave1 {
+            it.dat_rd := slave_1.dat_rd
+        } else {
+            it.dat_rd := slave_0.dat_rd
+        }
+    }
+
+    wire a_handshake : Bit {
+        it := master_0.stb && (if sel { slave_1.ack } else { slave_0.ack })
+    }
+
+    reg serving : SelState on clock {
+        if reset {
+            it <= @Slave0()
+        } else if a_handshake {
+            if sel {
+                it <= @Slave1()
+            } else {
+                it <= @Slave0()
+            }
+        }
+    }
+
+    wire serving_slave1 : Bit {
+        it := serving == @Slave1()
+    }
+}
+
+// --- Crossbar ----------------------------------------------------------------
+
+// WbXbar22 -- 2x2 Wishbone crossbar.
+//   master_0, master_1  server sockets for the two requesting masters.
+//   slave_0, slave_1    client sockets for the two target slaves.
+//
+// Each master gets a WbMux12 that steers by address.
+// Each slave gets a WbArb21 that resolves master conflicts.
+// All internal wiring is done with socket bulk connect (:=:).
+mod WbXbar22 {
+    incoming clock : Clock {
+        mux_0.clock := it
+        mux_1.clock := it
+        arb_0.clock := it
+        arb_1.clock := it
+    }
+
+    incoming reset : Bit {
+        mux_0.reset := it
+        mux_1.reset := it
+        arb_0.reset := it
+        arb_1.reset := it
+    }
+
+    server socket master_0 of Wishbone
+    server socket master_1 of Wishbone
+    client socket slave_0  of Wishbone
+    client socket slave_1  of Wishbone
+
+    mod mux_0 of WbMux12 {
+        it.master_0 :=: master_0
+    }
+
+    mod mux_1 of WbMux12 {
+        it.master_0 :=: master_1
+    }
+
+    mod arb_0 of WbArb21 {
+        it.master_0 :=: mux_0.slave_0   // master_0 -> slave_0 path
+        it.master_1 :=: mux_1.slave_0   // master_1 -> slave_0 path
+        slave_0 :=: it.slave_0
+    }
+
+    mod arb_1 of WbArb21 {
+        it.master_0 :=: mux_0.slave_1   // master_0 -> slave_1 path
+        it.master_1 :=: mux_1.slave_1   // master_1 -> slave_1 path
+        slave_1 :=: it.slave_0
+    }
 }

@@ -32,13 +32,13 @@ mod Ns8520 {
     outgoing d_mask : Bit
     outgoing d_data : Bit
 
-    a_ready  := ?
-    d_valid  := ?
-    d_opcode := ?
-    d_param  := ?
-    d_size   := ?
-    d_source := ?
-    d_addr   := ?
-    d_mask   := ?
-    d_data   := ?
+    a_ready  := false
+    d_valid  := false
+    d_opcode := false
+    d_param  := false
+    d_size   := false
+    d_source := false
+    d_addr   := false
+    d_mask   := false
+    d_data   := false
 }
