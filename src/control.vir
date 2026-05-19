@@ -131,4 +131,14 @@ mod Control {
     outgoing mem_sel : Word[4] {
         it := 0b1111w4
     }
+
+    incoming mem_ack : Bit
+    incoming instr_mem_ack : Bit
+    unused instr_mem_ack
+
+    outgoing stall : Bit {
+        it := (opcode == #LOAD && !mem_ack) || (is_fetching && !instr_mem_ack)
+    }
+
+    incoming is_fetching : Bit
 }

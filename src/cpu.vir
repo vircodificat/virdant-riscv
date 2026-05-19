@@ -20,22 +20,25 @@ mod Cpu {
     client socket instr_mem of wishbone::Wishbone {
         unused it.err
 
-        it.adr := pc
-        it.sel := 0b1111w4
+        it.adr    := pc
+        it.sel    := 0b1111w4
         it.dat_wr := 0w32
-        it.we  := false
+        it.we     := false
+
+        control.instr_mem_ack := it.ack
     }
 
     client socket mem of wishbone::Wishbone {
         unused it.err
-        unused it.ack
 
         it.adr := alu.z
         it.sel := control.mem_sel
         it.dat_wr := rf.rs2_out
+
         it.we  := control.mem_write
         it.stb := control.mem_strobe
         it.cyc := control.mem_strobe
+        control.mem_ack := it.ack
     }
 
     reg pc : Word[32] on clock {
@@ -60,23 +63,24 @@ mod Cpu {
     }
 
     reg instr : Word[32] on clock
+    reg mem_buffer : Word[32] on clock
 
     reg state : State on clock {
         if reset {
             it <= @Reset()
-        } else {
+        } else if !control.stall {
             match state {
                 case @Reset() => {
                     it <= @Fetching()
                 }
                 case @Fetching() => {
-                    if instr_mem.ack {
-                        it <= @Execute()
-                        instr <= instr_mem.dat_rd
-                    }
+                    control.is_fetching := true
+                    it <= @Execute()
+                    instr <= instr_mem.dat_rd
                 }
                 case @Execute() => {
                     it <= @Writeback()
+                    mem_buffer <= mem.dat_rd
                 }
                 case @Writeback() => {
                     it <= @Fetching()
@@ -104,7 +108,7 @@ mod Cpu {
             case #Imm       => idecode.imm
             case #PcPlusImm => pc + idecode.imm
             case #PcPlus4   => pc + 4
-            case #Mem       => mem.dat_rd
+            case #Mem       => mem_buffer
             case #AluZ      => alu.z
         }
     }
