@@ -14,11 +14,15 @@ export mod Top {
         it.mem :=: mem.wb
     }
 
+    outgoing return_code : Word[32] {
+        it := cpu.return_code
+    }
+
     mod mem of mem::WbMem {
         it.clock := clock
     }
 
     outgoing fin : Bit {
-        it := cpu.is_break
+        it := cpu.is_breaked
     }
 }

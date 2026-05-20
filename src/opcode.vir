@@ -32,11 +32,12 @@ enum type AluOpcode width 8 {
     Sra   = 16
 }
 
-enum type CpuStage width 4 {
-    Reset     = 0b0001
-    Fetching  = 0b0010
-    Execute   = 0b0100
-    Writeback = 0b1000
+enum type CpuStage width 5 {
+    Reset     = 0b00001
+    Fetching  = 0b00010
+    Execute   = 0b00100
+    Writeback = 0b01000
+    Breaked   = 0b10000
 }
 
 enum type Csr width 12 {

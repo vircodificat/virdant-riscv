@@ -63,7 +63,14 @@ mod Cpu {
                     mem_buffer <= mem.dat_rd
                 }
                 case #Writeback => {
-                    it <= #Fetching
+                    if control.is_break {
+                        it <= #Breaked
+                    } else {
+                        it <= #Fetching
+                    }
+                }
+                case #Breaked => {
+                    mem.adr := dontcare
                 }
             }
         }
@@ -90,7 +97,12 @@ mod Cpu {
         it.clock := clock
         it.rd  := idecode.rd
         it.rs1 := idecode.rs1
-        it.rs2 := idecode.rs2
+        it.rs2 :=
+            if stage == #Breaked {
+                10w5 // a0, the return code
+            } else {
+                idecode.rs2
+            }
         it.write := control.rf_write && stage == #Writeback
 
         it.rd_in  := match control.rd_source {
@@ -128,7 +140,11 @@ mod Cpu {
         it.data_in := rf.rs1_out
     }
 
-    outgoing is_break : Bit {
-        it := control.is_break && stage == #Writeback
+    outgoing is_breaked : Bit {
+        it := stage == #Breaked
+    }
+
+    outgoing return_code : Word[32] {
+        it := rf.rs2_out
     }
 }

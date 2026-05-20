@@ -232,6 +232,10 @@ int main(int argc, char** argv) {
         }
     }
 
+    cout << "Return code: " << top->return_code << endl;
+
     tfp->close();
     delete top;
+
+    return top->return_code;
 }
