@@ -45,8 +45,8 @@ mod IDecode {
         case #LUI    => word(instr[32..12], 0w12)
         case #AUIPC  => word(instr[32..12], 0w12)
         case #STORE  => sext(word(instr[32..25], instr[12..7]))
-        case #BRANCH => sext(word(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
-        case #JAL    => sext(word(instr[31], instr[20..12], instr[20], instr[31..21], 0w1))
+        case #BRANCH => sext(word(instr[31], instr[8], instr[31..25], instr[12..8], 0w1))
+        case #JAL    => sext(word(instr[31], instr[31..21], instr[21..20], instr[20..12], 0w1))
         case #SYSTEM => sext(instr[20..15]) // CSR immediate field
         else         => 0w32
     }
