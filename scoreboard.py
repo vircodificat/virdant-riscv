@@ -62,7 +62,15 @@ def main():
         print(f"{test_name:<{max_name_len}}  ", end='', flush=True)
         status = run_test(str(test_file))
         # Print result on the same line
-        print(status)
+        if status == 'PASS':
+            print("\033[32mPASS\033[0m")
+        elif status == 'FAIL':
+            print("\033[31mFAIL\033[0m")
+        elif status == 'TIMEOUT':
+            print("\033[33mTIMEOUT\033[0m")
+        else:
+            raise Exception
+
         results.append(TestResult(test_name, status))
 
     # Calculate and print pass rate

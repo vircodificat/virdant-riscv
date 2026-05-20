@@ -224,7 +224,20 @@ mod Control {
     }
 
     outgoing mem_sel : Word[4] {
-        it := 0b1111w4
+        if stage == #Fetching {
+            it := 0b1111w4
+        } else {
+            it := match funct3[2..0] { // the top bit is unsignedness for loads
+                case 0b00 => 0b0001
+                case 0b01 => 0b0011
+                case 0b10 => 0b1111
+                else      => dontcare
+            }
+        }
+    }
+
+    outgoing unsigned_load : Bit {
+        it := funct3[2]
     }
 
     wire is_fetching : Bit {

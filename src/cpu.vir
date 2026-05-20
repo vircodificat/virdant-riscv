@@ -109,9 +109,50 @@ mod Cpu {
             case #Imm       => idecode.imm
             case #PcPlusImm => pc + idecode.imm
             case #PcPlus4   => pc + 4
-            case #Mem       => mem_buffer
+            case #Mem       => mem_buffer_shifted
             case #AluZ      => alu.z
             case #Csr       => csrs.data_out
+        }
+    }
+
+    wire mem_buffer_shifted : Word[32] {
+        match idecode.funct3[2..0] {
+            case 0b00 => {
+                if control.unsigned_load {
+                    it := zext((match alu.z[2..0] {
+                        case 0 => mem_buffer[ 8.. 0]
+                        case 1 => mem_buffer[16.. 8]
+                        case 2 => mem_buffer[24..16]
+                        case 3 => mem_buffer[32..24]
+                    }) : Word[8])
+                } else {
+                    it := sext((match alu.z[2..0] {
+                        case 0 => mem_buffer[ 8.. 0]
+                        case 1 => mem_buffer[16.. 8]
+                        case 2 => mem_buffer[24..16]
+                        case 3 => mem_buffer[32..24]
+                    }) : Word[8])
+                }
+            }
+            case 0b01 => {
+                if control.unsigned_load {
+                     it:= zext((match alu.z[2..1] {
+                         case 0 => mem_buffer[16.. 0]
+                         case 1 => mem_buffer[32..16]
+                        }) : Word[16])
+                } else {
+                     it:= sext((match alu.z[2..1] {
+                         case 0 => mem_buffer[16.. 0]
+                         case 1 => mem_buffer[32..16]
+                        }) : Word[16])
+                }
+            }
+            case 0b10 => {
+                it := mem_buffer
+            }
+            case 0b11 => {
+                it := dontcare
+            }
         }
     }
 
