@@ -27,10 +27,10 @@ mod Cpu {
         if reset {
             it <= 0x80000000w32
         } else if stage == #Writeback {
-            if control.take_branch {
-                it <= it + idecode.imm
-            } else if idecode.opcode == #JALR {
+            if idecode.opcode == #JALR {
                 it <= rf.rs1_out + idecode.imm
+            } else if control.take_branch {
+                it <= it + idecode.imm
             } else if idecode.opcode == #JAL {
                 it <= it + idecode.imm
             } else if control.is_mret {
