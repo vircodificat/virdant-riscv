@@ -43,6 +43,9 @@ build_tests:
 	mkdir -p build
 	bash get_riscv_tests.sh
 
+scoreboard: build/sim
+	./scoreboard.py
+
 clean:
 	rm -rf build/
 	rm -f out.vcd

@@ -265,14 +265,14 @@ mod AluOpFromFunct37 {
                     #Add
                 }
             case 1 => #Sll
-            case 2 => dontcare // TODO: SLT
-            case 3 => dontcare // TODO: SLTU
+            case 2 => #Lt
+            case 3 => #Ltu
             case 4 => #Xor
             case 5 =>
-                if funct7[5] { // TODO: SRA
-                    dontcare
-                } else { // TODO: SRL
-                    dontcare
+                if funct7[5] {
+                    #Sra
+                } else {
+                    #Srl
                 }
             case 6 => #Or
             case 7 => #And
