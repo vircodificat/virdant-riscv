@@ -27,3 +27,10 @@ enum type AluOpcode width 7 {
     Gteu = 11
     Sll = 12
 }
+
+enum type CpuStage width 4 {
+    Reset     = 0b0001
+    Fetching  = 0b0010
+    Execute   = 0b0100
+    Writeback = 0b1000
+}

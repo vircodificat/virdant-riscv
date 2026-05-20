@@ -151,12 +151,17 @@ mod Control {
         it := 0b1111w4
     }
 
-    outgoing stall : Bit {
-        it := (opcode == #LOAD && !mem_ack) || (is_fetching && !mem_ack)
+    wire is_fetching : Bit {
+        it := stage == #Fetching
     }
+    incoming stage : opcode::CpuStage
 
-    incoming mem_ack : Bit
-    incoming is_fetching : Bit
+    outgoing is_break : Bit {
+        it :=
+            opcode == #SYSTEM &&
+            funct3 == 0b000 &&
+            stage == #Writeback
+    }
 }
 
 mod AluOpFromFunct37 {

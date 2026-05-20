@@ -4,18 +4,13 @@ import control
 import idecode
 import wishbone
 
-union type State {
-    Reset()
-    Fetching()
-    Execute()
-    Writeback()
-}
-
 mod Cpu {
     incoming clock : Clock
     incoming reset : Reset
 
-    mod control of control::Control
+    mod control of control::Control {
+        it.stage := stage
+    }
 
     client socket mem of wishbone::Wishbone {
         unused it.err
@@ -26,13 +21,12 @@ mod Cpu {
         it.we  := control.mem_write
         it.stb := control.mem_strobe
         it.cyc := control.mem_strobe
-        control.mem_ack := it.ack
     }
 
     reg pc : Word[32] on clock {
         if reset {
             it <= 0x80000000w32
-        } else if state == @Writeback() {
+        } else if stage == #Writeback {
             it <= next_pc
         }
     }
@@ -53,34 +47,37 @@ mod Cpu {
     reg instr : Word[32] on clock
     reg mem_buffer : Word[32] on clock
 
-    reg state : State on clock {
+    reg stage : opcode::CpuStage on clock {
         if reset {
-            it <= @Reset()
-        } else if !control.stall {
-            match state {
-                case @Reset() => {
-                    it <= @Fetching()
+            it <= #Reset
+        } else if !stall {
+            match stage {
+                case #Reset => {
+                    it <= #Fetching
                 }
-                case @Fetching() => {
-                    it <= @Execute()
+                case #Fetching => {
+                    it <= #Execute
                     mem.adr := pc
                     instr <= mem.dat_rd
                 }
-                case @Execute() => {
-                    it <= @Writeback()
+                case #Execute => {
+                    it <= #Writeback
                     mem.adr := alu.z
                     mem_buffer <= mem.dat_rd
                 }
-                case @Writeback() => {
-                    it <= @Fetching()
+                case #Writeback => {
+                    it <= #Fetching
                 }
             }
         }
     }
 
-    control.is_fetching := match state {
-        case @Fetching() => true
-        else => false
+    wire stall : Bit {
+        it := match stage {
+            case #Fetching => !mem.ack
+            case #Execute => idecode.opcode == #LOAD && !mem.ack
+            else => false
+        }
     }
 
     mod idecode of idecode::IDecode {
@@ -96,7 +93,7 @@ mod Cpu {
         it.rd  := idecode.rd
         it.rs1 := idecode.rs1
         it.rs2 := idecode.rs2
-        it.write := control.rf_write && state == @Writeback()
+        it.write := control.rf_write && stage == #Writeback
 
         it.rd_in  := match control.rd_source {
             case #Imm       => idecode.imm
@@ -124,9 +121,6 @@ mod Cpu {
     }
 
     outgoing is_break : Bit {
-        it :=
-            idecode.opcode == #SYSTEM &&
-            idecode.funct3 == 0b000 &&
-            state == @Writeback()
+        it := control.is_break
     }
 }
