@@ -111,6 +111,7 @@ mod Cpu {
         it.a := match control.alu_source_a {
             case #Rs1 => rf.rs1_out
             case #Pc => pc
+            case #Csr => csrs.data_out
         }
 
         it.b := match control.alu_source_b {
@@ -124,7 +125,7 @@ mod Cpu {
     mod csrs of mem::Csrs {
         it.clock := clock
         it.addr := idecode.csr
-        it.read_and_write := control.csr_rw && stage == #Execute
+        it.read_write := control.csr_rw && stage == #Execute
         it.data_in := rf.rs1_out
     }
 

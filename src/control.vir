@@ -1,8 +1,9 @@
 import opcode
 
-enum type AluSourceA width 2 {
-    Rs1 = 0b01
-    Pc  = 0b10
+enum type AluSourceA width 3 {
+    Rs1 = 0b001
+    Pc  = 0b010
+    Csr = 0b100
 }
 
 enum type AluSourceB width 2 {
@@ -34,7 +35,16 @@ mod Control {
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
-            alu_op        := #Zero
+            alu_op        := match funct3 {
+                case 0 => #Eq
+                case 1 => #Neq
+                case 2 => #Zero
+                case 3 => #Zero
+                case 4 => #Lt
+                case 5 => #Gte
+                case 6 => #Ltu
+                case 7 => #Gteu
+            }
         }
         case #JALR => {
             mem_write     := false
@@ -114,12 +124,20 @@ mod Control {
             mem_write     := false
             rf_write      := false
             take_branch   := false
-            csr_rw        := ?
+            csr_rw        := funct3 != 0b000
             is_break      := funct3 == 0b000
-            alu_source_a  := #Rs1
-            alu_source_b  := #Rs2
+            alu_source_a  := #Csr
+            alu_source_b  := #Imm
             rd_source     := #AluZ
-            alu_op        := #Zero
+            alu_op        := match funct3 {
+                case 0b001 => #PassA //CsrRw
+                case 0b010 => #Or    //CsrRs
+                case 0b011 => #Clear //CsrRc
+                case 0b101 => #PassA //CsrRwi
+                case 0b110 => #Or    //CsrRsi
+                case 0b111 => #Clear //CsrRci
+                else => dontcare
+            }
         }
         case #STORE => {
             mem_write     := true
@@ -141,7 +159,7 @@ mod Control {
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
-            alu_op        := #Zero
+            alu_op        := dontcare
         }
     }
 
@@ -192,26 +210,17 @@ mod AluOpFromFunct37 {
                     #Add
                 }
             case 1 => #Sll
-            case 2 => #Zero // TODO: SLT
-            case 3 => #Zero // TODO: SLTU
+            case 2 => dontcare // TODO: SLT
+            case 3 => dontcare // TODO: SLTU
             case 4 => #Xor
             case 5 =>
                 if funct7[5] { // TODO: SRA
-                    #Zero
+                    dontcare
                 } else { // TODO: SRL
-                    #Zero
+                    dontcare
                 }
             case 6 => #Or
             case 7 => #And
         }
     }
-}
-
-enum type CsrOp width 3 {
-    CsrRw  = 0b001
-    CsrRs  = 0b010
-    CsrRc  = 0b011
-    CsrRwi = 0b101
-    CsrRsi = 0b110
-    CsrRci = 0b111
 }

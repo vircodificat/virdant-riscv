@@ -10,7 +10,12 @@ mod Alu {
     mod shifter of Shifter {
         it.a := a
         it.amount := b[5..0]
-        it.dir := #ShiftLeftLogical
+        it.dir := match op {
+            case #Sll => #ShiftLeftLogical
+            case #Srl => #ShiftRightLogical
+            case #Sra => #ShiftRightArithmetic
+            else => dontcare
+        }
     }
 
     z := match op {
@@ -26,7 +31,11 @@ mod Alu {
         case #Zero => 0
         case #Ltu => zext(a < b)
         case #Gteu => zext(a >= b)
+        case #Clear => a & (~b)
+        case #PassA => a
         case #Sll => shifter.z
+        case #Srl => shifter.z
+        case #Sra => shifter.z
     }
 }
 
