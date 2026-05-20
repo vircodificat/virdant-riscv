@@ -11,7 +11,7 @@ mod IDecode {
 
     outgoing funct3 : Word[3]
     outgoing funct7 : Word[7]
-    outgoing csr : Word[12]
+    outgoing funct12 : Word[12]
 
     outgoing imm : Word[32]
 
@@ -31,12 +31,12 @@ mod IDecode {
         else if opcode_bits ==  15 { #FENCE }
         else { #SYSTEM }
 
-    rd     := instr[12..7]
-    rs1    := instr[20..15]
-    rs2    := instr[25..20]
-    funct3 := instr[15..12]
-    funct7 := instr[32..25]
-    csr    := instr[32..20]
+    rd      := instr[12..7]
+    rs1     := instr[20..15]
+    rs2     := instr[25..20]
+    funct3  := instr[15..12]
+    funct7  := instr[32..25]
+    funct12 := instr[32..20]
 
     imm := match opcode {
         case #OP_IMM => sext(instr[32..20])

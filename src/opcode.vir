@@ -40,13 +40,25 @@ enum type CpuStage width 4 {
 }
 
 enum type Csr width 12 {
-    MStatus  = 0x300
-    MIsa     = 0x301
-    MIe      = 0x304
-    MTvec    = 0x305
-    MScratch = 0x340
-    MEpc     = 0x341
-    MCause   = 0x342
-    MTval    = 0x343
-    MIp      = 0x344
+    MStatus   = 0x300
+    MIsa      = 0x301
+    MIe       = 0x304
+    MTvec     = 0x305
+    MScratch  = 0x340
+    MEpc      = 0x341
+    MCause    = 0x342
+    MTval     = 0x343
+    MIp       = 0x344
+    MVendorId = 0xF11
+    MArchId   = 0xF12
+    MImpId    = 0xF13
+    MHartId   = 0xF14
+}
+
+enum type System width 12 {
+    Ecall  = 0x000
+    Ebreak = 0x001
+    Wfi    = 0x105
+    Mret   = 0x302
+    Sret   = 0x102
 }

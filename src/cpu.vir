@@ -27,21 +27,18 @@ mod Cpu {
         if reset {
             it <= 0x80000000w32
         } else if stage == #Writeback {
-            it <= next_pc
-        }
-    }
-
-    wire next_pc : Word[32] {
-        it :=
             if control.take_branch {
-                pc + idecode.imm
+                it <= it + idecode.imm
             } else if idecode.opcode == #JALR {
-                rf.rs1_out + idecode.imm
+                it <= rf.rs1_out + idecode.imm
             } else if idecode.opcode == #JAL {
-               pc + idecode.imm
+                it <= it + idecode.imm
+            } else if control.is_mret {
+                it <= csrs.data_out
             } else {
-                pc + 4
+                it <= it + 4
             }
+        }
     }
 
     reg instr : Word[32] on clock
@@ -83,9 +80,10 @@ mod Cpu {
     mod idecode of idecode::IDecode {
         it.instr := instr
 
-        control.funct3 := it.funct3
-        control.funct7 := it.funct7
-        control.opcode := it.opcode
+        control.funct3   := it.funct3
+        control.funct7   := it.funct7
+        control.funct12  := it.funct12
+        control.opcode   := it.opcode
     }
 
     mod rf of rf::Rf {
@@ -117,6 +115,7 @@ mod Cpu {
         it.b := match control.alu_source_b {
             case #Rs2 => rf.rs2_out
             case #Imm => idecode.imm
+            case #Rs1 => rf.rs1_out
         }
 
         control.alu_z := it.z
@@ -124,8 +123,8 @@ mod Cpu {
 
     mod csrs of mem::Csrs {
         it.clock := clock
-        it.addr := idecode.csr
-        it.read_write := control.csr_rw && stage == #Execute
+        it.addr := control.csr
+        it.write := control.csr_rw && stage == #Execute
         it.data_in := rf.rs1_out
     }
 

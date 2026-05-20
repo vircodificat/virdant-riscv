@@ -6,9 +6,10 @@ enum type AluSourceA width 3 {
     Csr = 0b100
 }
 
-enum type AluSourceB width 2 {
-    Rs2 = 0b01
-    Imm = 0b10
+enum type AluSourceB width 3 {
+    Rs2 = 0b001
+    Imm = 0b010
+    Rs1 = 0b100
 }
 
 enum type RdSource width 6 {
@@ -21,10 +22,11 @@ enum type RdSource width 6 {
 }
 
 mod Control {
-    incoming opcode : opcode::Opcode
-    incoming funct3 : Word[3]
-    incoming funct7 : Word[7]
-    incoming alu_z  : Word[32]
+    incoming opcode  : opcode::Opcode
+    incoming funct3  : Word[3]
+    incoming funct7  : Word[7]
+    incoming funct12 : Word[12]
+    incoming alu_z   : Word[32]
 
     match opcode {
         case #BRANCH => {
@@ -38,13 +40,13 @@ mod Control {
             alu_op        := match funct3 {
                 case 0 => #Eq
                 case 1 => #Neq
-                case 2 => #Zero
-                case 3 => #Zero
                 case 4 => #Lt
                 case 5 => #Gte
                 case 6 => #Ltu
                 case 7 => #Gteu
+                else   => dontcare
             }
+            csr           := dontcare
         }
         case #JALR => {
             mem_write     := false
@@ -55,6 +57,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #PcPlus4
             alu_op        := #Zero
+            csr           := dontcare
         }
         case #JAL => {
             mem_write     := false
@@ -65,6 +68,7 @@ mod Control {
             alu_source_b  := #Rs2
             rd_source     := #PcPlus4
             alu_op        := #Zero
+            csr           := dontcare
         }
         case #OP_IMM => {
             mem_write     := false
@@ -75,6 +79,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #AluZ
             alu_op        := alu_op_from_funct37.op
+            csr           := dontcare
         }
         case #OP => {
             mem_write     := false
@@ -86,6 +91,7 @@ mod Control {
             alu_source_b  := #Rs2
             rd_source     := #AluZ
             alu_op        := alu_op_from_funct37.op
+            csr           := dontcare
         }
         case #LUI => {
             mem_write     := false
@@ -97,6 +103,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #Imm
             alu_op        := #Zero
+            csr           := dontcare
         }
         case #AUIPC => {
             mem_write     := false
@@ -108,6 +115,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #PcPlusImm
             alu_op        := #Add
+            csr           := dontcare
         }
         case #LOAD => {
             mem_write     := false
@@ -119,25 +127,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #Mem
             alu_op        := #Add
-        }
-        case #SYSTEM => {
-            mem_write     := false
-            rf_write      := false
-            take_branch   := false
-            csr_rw        := funct3 != 0b000
-            is_break      := funct3 == 0b000
-            alu_source_a  := #Csr
-            alu_source_b  := #Imm
-            rd_source     := #AluZ
-            alu_op        := match funct3 {
-                case 0b001 => #PassA //CsrRw
-                case 0b010 => #Or    //CsrRs
-                case 0b011 => #Clear //CsrRc
-                case 0b101 => #PassA //CsrRwi
-                case 0b110 => #Or    //CsrRsi
-                case 0b111 => #Clear //CsrRci
-                else => dontcare
-            }
+            csr           := dontcare
         }
         case #STORE => {
             mem_write     := true
@@ -149,6 +139,7 @@ mod Control {
             alu_source_b  := #Imm
             rd_source     := #AluZ
             alu_op        := #Add
+            csr           := dontcare
         }
         case #FENCE => {
             mem_write     := false
@@ -160,6 +151,48 @@ mod Control {
             alu_source_b  := #Rs2
             rd_source     := #AluZ
             alu_op        := dontcare
+            csr           := dontcare
+        }
+        case #SYSTEM => {
+            mem_write     := false
+            if funct3  == 0b000 {    // is Privileged?
+                is_break      := system_op.op == #Ecall || system_op.op == #Ebreak
+                csr_rw        := false
+                rf_write      := false
+                csr_rw        := false
+                take_branch   := false
+                csr := match system_op.op {
+                    case #Mret => word(#MEpc : opcode::Csr)
+                    case #Sret => dontcare // TODO
+                    else       => dontcare
+                }
+            } else {                 // is CSR?
+                is_break      := false
+                csr_rw        := true
+                rf_write      := true
+                take_branch   := false
+                csr           := funct12
+                alu_source_a  := #Csr
+                alu_source_b  := match funct3 {
+                    case 0b001 => #Rs1 //CsrRw
+                    case 0b010 => #Rs1 //CsrRs
+                    case 0b011 => #Rs1 //CsrRc
+                    case 0b101 => #Imm //CsrRwi
+                    case 0b110 => #Imm //CsrRsi
+                    case 0b111 => #Imm //CsrRci
+                    else => dontcare
+                }
+                rd_source     := #Csr
+                alu_op        := match funct3 {
+                    case 0b001 => #PassA //CsrRw
+                    case 0b010 => #Or    //CsrRs
+                    case 0b011 => #Clear //CsrRc
+                    case 0b101 => #PassA //CsrRwi
+                    case 0b110 => #Or    //CsrRsi
+                    case 0b111 => #Clear //CsrRci
+                    else => dontcare
+                }
+            }
         }
     }
 
@@ -184,6 +217,11 @@ mod Control {
     outgoing alu_source_b   : AluSourceB
     outgoing rd_source      : RdSource
     outgoing alu_op         : opcode::AluOpcode
+    outgoing csr            : Word[12]
+
+    mod system_op of SystemOpFromFunct12 {
+        it.funct12 := funct12
+    }
 
     outgoing mem_sel : Word[4] {
         it := 0b1111w4
@@ -193,6 +231,10 @@ mod Control {
         it := stage == #Fetching
     }
     incoming stage : opcode::CpuStage
+
+    outgoing is_mret : Bit {
+        it := opcode == #SYSTEM && funct3 == 0b000 && system_op.op == #Mret
+    }
 
     outgoing is_break : Bit
 }
@@ -221,6 +263,21 @@ mod AluOpFromFunct37 {
                 }
             case 6 => #Or
             case 7 => #And
+        }
+    }
+}
+
+mod SystemOpFromFunct12 {
+    incoming funct12 : Word[12]
+
+    outgoing op : opcode::System {
+        it := match funct12 {
+            case 0x000 => #Ecall
+            case 0x001 => #Ebreak
+            case 0x105 => #Wfi
+            case 0x302 => #Mret
+            case 0x102 => #Sret
+            else => dontcare
         }
     }
 }

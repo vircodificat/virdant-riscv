@@ -48,7 +48,7 @@ ext mod Csrs {
     incoming addr     : Word[12]
     incoming data_in  : Word[32]
     outgoing data_out : Word[32]
-    incoming read_write  : Bit
+    incoming write  : Bit
 }
 
 ext mod Rom {

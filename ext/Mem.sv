@@ -31,18 +31,21 @@ module \mem::Csrs (
     input  wire     [11:0]  addr,
     input  wire     [31:0]  data_in,
     output reg      [31:0]  data_out,
-    input  wire             read_write
+    input  wire             write
 ); /* verilator public_module */
     reg [31:0] mem[4096] /* verilator public */;
 
+    assign data_out = mem[addr];
+
     always @(posedge clock) begin
-        if (read_write) begin
-            data_out = mem[addr];
+        if (write) begin
             mem[addr] = data_in;
-//            $display("Mem read: [0x%x] >= 0x%x", addr, data_out);
-        end else begin
-            data_out = 32'd0;
+//            $display("CSR: 0x%x <= [0x%x] <= 0x%x", data_out, addr, data_in);
         end
+    end
+
+    initial begin
+        mem[12'hF14] = 32'd0;
     end
 
 endmodule
