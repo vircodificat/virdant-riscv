@@ -1,3 +1,5 @@
+`ifdef VERILATOR
+
 module \mem::Mem (
     input  wire             clock,
     input  wire     [31:0]  addr,
@@ -56,14 +58,4 @@ module \mem::Csrs (
 
 endmodule
 
-module \mem::Rom (
-    input  wire     [31:0]  addr,
-    output reg      [31:0]  instr
-); /* verilator public_module */
-    // 64KiB: 16384 entries * 4 bytes = 64 * 1024 bytes
-    reg [31:0] mem[16384] /* verilator public */;
-
-    always @(*) begin
-        instr = mem[addr[15:2]];
-    end
-endmodule
+`endif

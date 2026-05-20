@@ -20,21 +20,6 @@ mod WbMem {
     }
 }
 
-mod WbRom {
-    server socket wb of wishbone::Wishbone {
-        rom.addr := it.adr
-        it.dat_rd := if it.cyc { rom.instr } else { 0 }
-        it.ack := it.stb
-        it.err := false
-
-        unused it.we
-        unused it.dat_wr
-        unused it.sel
-    }
-
-    mod rom of Rom
-}
-
 ext mod Mem {
     incoming clock : Clock
     incoming addr     : Word[32]
@@ -51,9 +36,4 @@ ext mod Csrs {
     incoming data_in  : Word[32]
     outgoing data_out : Word[32]
     incoming write  : Bit
-}
-
-ext mod Rom {
-    incoming addr : Word[32]
-    outgoing instr : Word[32]
 }
