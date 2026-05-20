@@ -34,3 +34,15 @@ enum type CpuStage width 4 {
     Execute   = 0b0100
     Writeback = 0b1000
 }
+
+enum type Csr width 12 {
+    MStatus  = 0x300
+    MIsa     = 0x301
+    MIe      = 0x304
+    MTvec    = 0x305
+    MScratch = 0x340
+    MEpc     = 0x341
+    MCause   = 0x342
+    MTval    = 0x343
+    MIp      = 0x344
+}

@@ -11,6 +11,7 @@ mod IDecode {
 
     outgoing funct3 : Word[3]
     outgoing funct7 : Word[7]
+    outgoing csr : Word[12]
 
     outgoing imm : Word[32]
 
@@ -35,6 +36,7 @@ mod IDecode {
     rs2    := instr[25..20]
     funct3 := instr[15..12]
     funct7 := instr[32..25]
+    csr    := instr[32..20]
 
     imm :=
         if opcode_bits == 19 { // OP-IMM

@@ -43,6 +43,14 @@ ext mod Mem {
     incoming read  : Bit
 }
 
+ext mod Csrs {
+    incoming clock : Clock
+    incoming addr     : Word[12]
+    incoming data_in  : Word[32]
+    outgoing data_out : Word[32]
+    incoming read_and_write  : Bit
+}
+
 ext mod Rom {
     incoming addr : Word[32]
     outgoing instr : Word[32]

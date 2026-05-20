@@ -26,6 +26,32 @@ module \mem::Mem (
     end
 endmodule
 
+module \mem::Csrs (
+    input  wire             clock,
+    input  wire     [11:0]  addr,
+    input  wire     [31:0]  data_in,
+    output reg      [31:0]  data_out
+    input  wire             read_write,
+); /* verilator public_module */
+    reg [31:0] mem[4096] /* verilator public */;
+
+    always @(*) begin
+        if (read) begin
+            data_out = mem[addr];
+//            $display("Mem read: [0x%x] >= 0x%x", addr, data_out);
+        end else begin
+            data_out = 32'd0;
+        end
+    end
+
+    always @(posedge clock) begin
+        if (write) begin
+//            $display("Mem write: [0x%x] <= 0x%x", addr, data_in);
+            mem[addr] <= data_in;
+        end
+    end
+endmodule
+
 module \mem::Rom (
     input  wire     [31:0]  addr,
     output reg      [31:0]  instr

@@ -101,6 +101,7 @@ mod Cpu {
             case #PcPlus4   => pc + 4
             case #Mem       => mem_buffer
             case #AluZ      => alu.z
+            case #Csr       => csrs.data_out
         }
     }
 
@@ -120,7 +121,14 @@ mod Cpu {
         control.alu_z := it.z
     }
 
+    mod csrs of mem::Csrs {
+        it.clock := clock
+        it.addr := idecode.csr
+        it.read_and_write := control.csr_rw && stage == #Execute
+        it.data_in := rf.rs1_out
+    }
+
     outgoing is_break : Bit {
-        it := control.is_break
+        it := control.is_break && stage == #Writeback
     }
 }

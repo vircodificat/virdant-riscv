@@ -10,12 +10,13 @@ enum type AluSourceB width 2 {
     Imm = 0b10
 }
 
-enum type RdSource width 5 {
-    Mem       = 0b00001w5
-    Imm       = 0b00010w5
-    PcPlusImm = 0b00100w5
-    PcPlus4   = 0b01000w5
-    AluZ      = 0b10000w5
+enum type RdSource width 6 {
+    Mem       = 0b000001w6
+    Imm       = 0b000010w6
+    PcPlusImm = 0b000100w6
+    PcPlus4   = 0b001000w6
+    AluZ      = 0b010000w6
+    Csr       = 0b100000w6
 }
 
 mod Control {
@@ -29,6 +30,7 @@ mod Control {
             mem_write     := false
             rf_write      := false
             take_branch   := alu_z[0]
+            csr_rw        := false
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
@@ -38,6 +40,7 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := true
+            csr_rw        := false
             alu_source_a  := #Rs1
             alu_source_b  := #Imm
             rd_source     := #PcPlus4
@@ -47,6 +50,7 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := true
+            csr_rw        := false
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #PcPlus4
@@ -56,6 +60,7 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := false
+            csr_rw        := false
             alu_source_a  := #Rs1
             alu_source_b  := #Imm
             rd_source     := #AluZ
@@ -65,6 +70,8 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
@@ -74,6 +81,8 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Rs1
             alu_source_b  := #Imm
             rd_source     := #Imm
@@ -83,6 +92,8 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Pc
             alu_source_b  := #Imm
             rd_source     := #PcPlusImm
@@ -92,6 +103,8 @@ mod Control {
             mem_write     := false
             rf_write      := true
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Rs1
             alu_source_b  := #Imm
             rd_source     := #Mem
@@ -101,6 +114,8 @@ mod Control {
             mem_write     := false
             rf_write      := false
             take_branch   := false
+            csr_rw        := ?
+            is_break      := funct3 == 0b000
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
@@ -110,6 +125,8 @@ mod Control {
             mem_write     := true
             rf_write      := false
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Rs1
             alu_source_b  := #Imm
             rd_source     := #AluZ
@@ -119,6 +136,8 @@ mod Control {
             mem_write     := false
             rf_write      := false
             take_branch   := false
+            csr_rw        := false
+            is_break      := false
             alu_source_a  := #Rs1
             alu_source_b  := #Rs2
             rd_source     := #AluZ
@@ -139,13 +158,14 @@ mod Control {
         it := is_fetching || opcode == #LOAD || opcode == #STORE
     }
 
-    outgoing mem_write : Bit
-    outgoing rf_write : Bit
-    outgoing take_branch : Bit
-    outgoing alu_source_a : AluSourceA
-    outgoing alu_source_b : AluSourceB
-    outgoing rd_source : RdSource
-    outgoing alu_op : opcode::AluOpcode
+    outgoing mem_write      : Bit
+    outgoing rf_write       : Bit
+    outgoing csr_rw         : Bit
+    outgoing take_branch    : Bit
+    outgoing alu_source_a   : AluSourceA
+    outgoing alu_source_b   : AluSourceB
+    outgoing rd_source      : RdSource
+    outgoing alu_op         : opcode::AluOpcode
 
     outgoing mem_sel : Word[4] {
         it := 0b1111w4
@@ -156,12 +176,7 @@ mod Control {
     }
     incoming stage : opcode::CpuStage
 
-    outgoing is_break : Bit {
-        it :=
-            opcode == #SYSTEM &&
-            funct3 == 0b000 &&
-            stage == #Writeback
-    }
+    outgoing is_break : Bit
 }
 
 mod AluOpFromFunct37 {
@@ -190,4 +205,13 @@ mod AluOpFromFunct37 {
             case 7 => #And
         }
     }
+}
+
+enum type CsrOp width 3 {
+    CsrRw  = 0b001
+    CsrRs  = 0b010
+    CsrRc  = 0b011
+    CsrRwi = 0b101
+    CsrRsi = 0b110
+    CsrRci = 0b111
 }
