@@ -24,119 +24,165 @@ mod Control {
     incoming funct7 : Word[7]
     incoming alu_z  : Word[32]
 
-    outgoing mem_write : Bit {
-        it := opcode == #STORE
+    match opcode {
+        case #BRANCH => {
+            mem_write     := false
+            rf_write      := false
+            take_branch   := alu_z[0]
+            alu_source_a  := #Rs1
+            alu_source_b  := #Rs2
+            rd_source     := #AluZ
+            alu_op        := #Zero
+        }
+        case #JALR => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := true
+            alu_source_a  := #Rs1
+            alu_source_b  := #Imm
+            rd_source     := #PcPlus4
+            alu_op        := #Zero
+        }
+        case #JAL => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := true
+            alu_source_a  := #Rs1
+            alu_source_b  := #Rs2
+            rd_source     := #PcPlus4
+            alu_op        := #Zero
+        }
+        case #OP_IMM => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Imm
+            rd_source     := #AluZ
+            alu_op        := alu_op_from_funct37.op
+        }
+        case #OP => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Rs2
+            rd_source     := #AluZ
+            alu_op        := alu_op_from_funct37.op
+        }
+        case #LUI => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Imm
+            rd_source     := #Imm
+            alu_op        := #Zero
+        }
+        case #AUIPC => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := false
+            alu_source_a  := #Pc
+            alu_source_b  := #Imm
+            rd_source     := #PcPlusImm
+            alu_op        := #Add
+        }
+        case #LOAD => {
+            mem_write     := false
+            rf_write      := true
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Imm
+            rd_source     := #Mem
+            alu_op        := #Add
+        }
+        case #SYSTEM => {
+            mem_write     := false
+            rf_write      := false
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Rs2
+            rd_source     := #AluZ
+            alu_op        := #Zero
+        }
+        case #STORE => {
+            mem_write     := true
+            rf_write      := false
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Imm
+            rd_source     := #AluZ
+            alu_op        := #Add
+        }
+        case #FENCE => {
+            mem_write     := false
+            rf_write      := false
+            take_branch   := false
+            alu_source_a  := #Rs1
+            alu_source_b  := #Rs2
+            rd_source     := #AluZ
+            alu_op        := #Zero
+        }
+    }
+
+    mod alu_op_from_funct37 of AluOpFromFunct37 {
+        it.funct3 := funct3
+        it.funct7 := if opcode == #OP {
+            funct7 // For opcode OP, there is a funct7...
+        } else {
+            0w7 // But for opcode OP-IMM, there isn't, and we pass 0 instead
+        }
     }
 
     outgoing mem_strobe : Bit {
         it := is_fetching || opcode == #LOAD || opcode == #STORE
     }
 
-    outgoing take_branch : Bit {
-        it := opcode == #BRANCH && alu_z[0]
-    }
-
-    outgoing rf_write : Bit {
-        it := match opcode {
-            case #OP_IMM => true
-            case #OP => true
-            case #AUIPC => true
-            case #LUI => true
-            case #JALR => true
-            case #JAL => true
-            case #LOAD => true
-            else => false
-        }
-    }
-
-    outgoing rd_source : RdSource {
-        it := match opcode {
-            case #LOAD  => #Mem
-            case #LUI   => #Imm
-            case #AUIPC => #PcPlusImm
-            case #JAL   => #PcPlus4
-            case #JALR  => #PcPlus4
-            else        => #AluZ
-        }
-    }
-
-    outgoing alu_source_a : AluSourceA {
-        it := match opcode {
-            case #AUIPC  => #Pc
-            else => #Rs1
-        }
-    }
-    outgoing alu_source_b : AluSourceB {
-        it := match opcode {
-            case #OP_IMM => #Imm
-            case #LUI    => #Imm
-            case #LOAD   => #Imm
-            case #STORE  => #Imm
-            else         => #Rs2
-        }
-    }
-
-    outgoing alu_op : opcode::AluOpcode {
-        it := match opcode {
-            case #AUIPC => #Add
-            case #LOAD => #Add
-            case #STORE => #Add
-            case #OP =>
-                match funct3 {
-                    case 0 =>
-                        if funct7[5] {
-                            #Sub
-                        } else {
-                            #Add
-                        }
-                    case 1 => #Sll // SLL
-                    case 2 => #Zero // SLT
-                    case 3 => #Zero // SLTU
-                    case 4 => #Xor
-                    case 5 =>       // SLR/A
-                        if funct7[5] { // SRA
-                            #Zero
-                        } else { // SRL
-                            #Zero
-                        }
-                    case 6 => #Or // OR
-                    case 7 => #And // SLT
-                }
-            case #OP_IMM =>
-                match funct3 {
-                    case 0 => #Add
-                    case 1 => #Sll // SLL
-                    case 2 => #Zero // SLT
-                    case 3 => #Zero // SLTU
-                    case 4 => #Xor
-                    case 5 => #Zero // SRL/A
-                    case 6 => #Or
-                    case 7 => #And
-                }
-            case #BRANCH =>
-                match funct3 {
-                    case 0 => #Eq
-                    case 1 => #Neq
-                    case 2 => #Zero
-                    case 3 => #Zero
-                    case 4 => #Lt
-                    case 5 => #Gte
-                    case 6 => #Ltu
-                    case 7 => #Gteu
-                }
-            else => #Zero
-        }
-    }
+    outgoing mem_write : Bit
+    outgoing rf_write : Bit
+    outgoing take_branch : Bit
+    outgoing alu_source_a : AluSourceA
+    outgoing alu_source_b : AluSourceB
+    outgoing rd_source : RdSource
+    outgoing alu_op : opcode::AluOpcode
 
     outgoing mem_sel : Word[4] {
         it := 0b1111w4
     }
 
-    incoming mem_ack : Bit
-
     outgoing stall : Bit {
         it := (opcode == #LOAD && !mem_ack) || (is_fetching && !mem_ack)
     }
 
+    incoming mem_ack : Bit
     incoming is_fetching : Bit
+}
+
+mod AluOpFromFunct37 {
+    incoming funct3 : Word[3]
+    incoming funct7 : Word[7]
+
+    outgoing op : opcode::AluOpcode {
+        it := match funct3 {
+            case 0 =>
+                if funct7[5] {
+                    #Sub
+                } else {
+                    #Add
+                }
+            case 1 => #Sll
+            case 2 => #Zero // TODO: SLT
+            case 3 => #Zero // TODO: SLTU
+            case 4 => #Xor
+            case 5 =>
+                if funct7[5] { // TODO: SRA
+                    #Zero
+                } else { // TODO: SRL
+                    #Zero
+                }
+            case 6 => #Or
+            case 7 => #And
+        }
+    }
 }
