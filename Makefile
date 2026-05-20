@@ -46,6 +46,16 @@ build_tests:
 scoreboard: build/sim
 	./scoreboard.py
 
+synth: $(VIR_SOURCES) $(SV_SOURCES)
+	vir build
+	cp ext/* build/
+	yosys -p "synth_ice40 -top Top -json build/top.json" build/*.sv | tee build/yosys.log
+	nextpnr-ice40 --up5k --package sg48 \
+		--json build/top.json \
+		--pcf icesugar.pcf \
+		--pcf-allow-unconstrained \
+		--asc build/top.asc | tee build/nextpnr-ice40.log
+
 clean:
 	rm -rf build/
 	rm -f out.vcd
