@@ -1,27 +1,42 @@
+//! Top-level SoC wrapper.
+//!
+//! Instantiates the CPU core and the Wishbone-attached memory,
+//! wires them together, and exposes reset, clock, return-code,
+//! and finish signals.
+
 import cpu
 import mem
 
+/// Top module: the outermost entity of the design.
 export mod Top {
+    /// Global clock input.
     incoming clock : Clock
+    /// Global reset input (active-high).
     incoming reset : Reset
 
+    /// Cycle counter. Increments each clock cycle.
     reg cycle : Word[32] on clock
+    // Increment cycle counter every cycle.
     cycle <= if reset { 0w32 } else { cycle + 1w32 }
 
+    /// CPU core instance.
     mod cpu of cpu::Cpu {
         it.clock := clock
         it.reset := reset
         it.mem :=: mem.wb
     }
 
+    /// Return code from the CPU (register a0 value at EBREAK).
     outgoing return_code : Word[32] {
         it := cpu.return_code
     }
 
+    /// Memory instance (Wishbone-attached).
     mod mem of mem::WbMem {
         it.clock := clock
     }
 
+    /// Finish indicator: asserted when the CPU reaches the Breaked state.
     outgoing fin : Bit {
         it := cpu.is_breaked
     }

@@ -1,22 +1,39 @@
-import opcode
+/// Instruction decode module.
+///
+/// Decodes a 32-bit RISC-V instruction into opcode, register indices,
+/// function fields, and the immediate value (sign-extended or zero-extended
+/// as appropriate for each instruction format).
 
 mod IDecode {
+    /// The 32-bit instruction word fetched from memory.
     incoming instr : Word[32]
 
+    /// Decoded 7-bit primary opcode (`instr[6:0]`).
     outgoing wire opcode : opcode::Opcode
 
+    /// Destination register index (`instr[11:7]`).
     outgoing rd : Word[5]
+    /// First source register index (`instr[19:15]`).
     outgoing rs1 : Word[5]
+    /// Second source register index (`instr[24:20]`).
     outgoing rs2 : Word[5]
 
+    /// 3-bit function selector (`instr[14:12]`).
     outgoing funct3 : Word[3]
+    /// 7-bit function selector (`instr[31:25]`).
     outgoing funct7 : Word[7]
+    /// 12-bit function selector for CSR / SYSTEM instructions (`instr[31:20]`).
     outgoing funct12 : Word[12]
 
+    /// Decoded immediate value, sign- or zero-extended to 32 bits.
+    ///
+    /// Format depends on the opcode (I-type, S-type, B-type, J-type, U-type).
     outgoing imm : Word[32]
 
+    /// Raw opcode bits `instr[6:0]`.
     wire opcode_bits : Word[7]
     opcode_bits := instr[7..0]
+    // Map raw opcode bits to the `Opcode` enum.
     opcode :=
         if opcode_bits ==  99 { #BRANCH }
         else if opcode_bits ==  103 { #JALR }
@@ -31,13 +48,20 @@ mod IDecode {
         else if opcode_bits ==  15 { #FENCE }
         else { #SYSTEM }
 
+    // Extract `rd` from `instr[11:7]`.
     rd      := instr[12..7]
+    // Extract `rs1` from `instr[19:15]`.
     rs1     := instr[20..15]
+    // Extract `rs2` from `instr[24:20]`.
     rs2     := instr[25..20]
+    // Extract `funct3` from `instr[14:12]`.
     funct3  := instr[15..12]
+    // Extract `funct7` from `instr[31:25]`.
     funct7  := instr[32..25]
+    // Extract `funct12` from `instr[31:20]`.
     funct12 := instr[32..20]
 
+    // Immediate value, computed per RISC-V spec for each instruction format.
     imm := match opcode {
         case #OP_IMM => sext(instr[32..20])
         case #JALR   => sext(instr[32..20])

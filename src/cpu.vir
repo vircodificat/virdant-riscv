@@ -12,13 +12,17 @@ import wishbone
 ///
 /// This implements RV32I and passes all rv32iu tests in riscv-tests.
 mod Cpu {
+    /// Global clock input.
     incoming clock : Clock
+    /// Global reset input (active-high).
     incoming reset : Reset
 
+    /// Control unit sub-module.
     mod control of control::Control {
         it.stage := stage
     }
 
+    /// Wishbone bus client socket for instruction fetch and data access.
     client socket mem of wishbone::Wishbone {
         unused it.err
 
@@ -36,6 +40,10 @@ mod Cpu {
         control.mem_ack := it.ack
     }
 
+    /// Program counter register.
+    ///
+    /// Reset to 0x80000000. Updated in the Writeback stage: sequential
+    /// increments by 4, or target address for branches, JAL, JALR, MRET.
     reg pc : Word[32] on clock {
         if reset {
             it <= 0x80000000w32
@@ -54,9 +62,15 @@ mod Cpu {
         }
     }
 
+    /// Instruction word register. Fetched from memory in the Fetch stage.
     reg instr : Word[32] on clock
+    /// Memory read-data buffer. Captured from the Wishbone bus in the Execute stage.
     reg mem_buffer : Word[32] on clock
 
+    /// Pipeline stage state machine.
+    ///
+    /// Transitions: Reset → Fetching → Execute → Writeback → (Breaked | Fetching).
+    /// Stalls when `control.stall` is asserted.
     reg stage : opcode::CpuStage on clock {
         if reset {
             it <= #Reset
@@ -89,6 +103,7 @@ mod Cpu {
         }
     }
 
+    /// Instruction decoder sub-module.
     mod idecode of idecode::IDecode {
         it.instr := instr
 
@@ -98,6 +113,7 @@ mod Cpu {
         control.opcode   := it.opcode
     }
 
+    /// Register file sub-module.
     mod rf of rf::Rf {
         it.clock := clock
         it.rd  := idecode.rd
@@ -120,6 +136,11 @@ mod Cpu {
         }
     }
 
+    /// Memory read-data alignment and sign/zero-extension.
+    ///
+    /// Selects the correct byte/halfword/word from `mem_buffer` based on
+    /// the load address alignment (`alu.z[1:0]`) and applies signed or
+    /// unsigned extension according to `funct3[2]`.
     wire mem_buffer_shifted : Word[32] {
         match idecode.funct3[2..0] {
             case 0b00 => {
@@ -161,6 +182,7 @@ mod Cpu {
         }
     }
 
+    /// ALU sub-module.
     mod alu of alu::Alu {
         it.op := control.alu_op
 
@@ -179,6 +201,7 @@ mod Cpu {
         control.alu_z := it.z
     }
 
+    /// CSR file sub-module.
     mod csrs of mem::Csrs {
         it.clock := clock
         it.addr := control.csr
@@ -186,10 +209,12 @@ mod Cpu {
         it.data_in := rf.rs1_out
     }
 
+    /// Halted indicator: asserted when the CPU has hit EBREAK.
     outgoing is_breaked : Bit {
         it := stage == #Breaked
     }
 
+    /// Return code (register a0 value at the time of EBREAK).
     outgoing return_code : Word[32] {
         it := rf.rs2_out
     }

@@ -21,70 +21,117 @@
 // Wishbone channel directions are from the master perspective.
 // cosi = Client-Out, Server-In: the master drives these signals.
 // ciso = Client-In,  Server-Out: the slave drives these signals.
-socket Wishbone {
-    cosi cyc     : Bit         // master: cycle active
-    cosi stb     : Bit         // master: strobe (data phase)
-    cosi we      : Bit         // master: write enable
-    cosi adr     : Word[32]    // master: address
-    cosi dat_wr  : Word[32]    // master: write data
-    cosi sel     : Word[4]     // master: byte select mask
 
-    ciso ack     : Bit         // slave: transfer acknowledgement
-    ciso err     : Bit         // slave: error response
-    ciso dat_rd  : Word[32]    // slave: read data
+/// Wishbone bus socket.
+///
+/// Standard Wishbone B.4 signals for a 32-bit data bus.
+/// All signals are from the master's perspective.
+socket Wishbone {
+    /// Cycle start: the master asserts this for the duration of a bus transaction.
+    cosi cyc     : Bit
+    /// Strobe: the master asserts this during the data phase.
+    cosi stb     : Bit
+    /// Write enable: high for write, low for read.
+    cosi we      : Bit
+    /// Address (32-bit byte address).
+    cosi adr     : Word[32]
+    /// Write data.
+    cosi dat_wr  : Word[32]
+    /// Byte-select mask (one hot per byte lane).
+    cosi sel     : Word[4]
+
+    /// Acknowledge: the slave asserts this when the transfer is complete.
+    ciso ack     : Bit
+    /// Error: the slave asserts this on an error.
+    ciso err     : Bit
+    /// Read data.
+    ciso dat_rd  : Word[32]
 }
 
 // --- Shared building blocks --------------------------------------------------
 
+/// Arbiter state: which master is being served by an arbiter.
 union type Serving {
+    /// No master currently being served.
     Idle()
+    /// Serving master 0.
     ServingMaster0()
+    /// Serving master 1.
     ServingMaster1()
 }
 
+/// Round-robin priority state for the arbiter.
 union type Priority {
+    /// Master 0 has priority on the next tie.
     Master0First()
+    /// Master 1 has priority on the next tie.
     Master1First()
 }
 
+/// Slave-select state: which slave is being served by a mux.
 union type SelState {
+    /// Selected slave 0 (address bit 31 == 0).
     Slave0()
+    /// Selected slave 1 (address bit 31 == 1).
     Slave1()
 }
 
-// WbArb21 -- 2-to-1 Wishbone round-robin arbiter.
+/// 2-to-1 Wishbone round-robin arbiter.
+///
+/// Arbitrates between two Wishbone masters for access to a single
+/// Wishbone slave.  Uses a round-robin priority register to break ties
+/// when both masters request simultaneously.
 mod WbArb21 {
+    /// Global clock.
     incoming clock : Clock
+    /// Active-high reset.
     incoming reset : Bit
 
+    /// Server socket for master 0.
     server socket master_0 of Wishbone
+    /// Server socket for master 1.
     server socket master_1 of Wishbone
 
+    /// Master 0 cycle signal (sampled for arbitration).
     wire m0_cyc : Bit
     m0_cyc := master_0.cyc
+    /// Master 1 cycle signal (sampled for arbitration).
     wire m1_cyc : Bit
     m1_cyc := master_1.cyc
+    /// Master 0 strobe signal.
     wire m0_stb : Bit
     m0_stb := master_0.stb
+    /// Master 1 strobe signal.
     wire m1_stb : Bit
     m1_stb := master_1.stb
+    /// Master 0 write-enable.
     wire m0_we : Bit
     m0_we := master_0.we
+    /// Master 1 write-enable.
     wire m1_we : Bit
     m1_we := master_1.we
+    /// Master 0 address.
     wire m0_adr : Word[32]
     m0_adr := master_0.adr
+    /// Master 1 address.
     wire m1_adr : Word[32]
     m1_adr := master_1.adr
+    /// Master 0 write data.
     wire m0_dat_wr : Word[32]
     m0_dat_wr := master_0.dat_wr
+    /// Master 1 write data.
     wire m1_dat_wr : Word[32]
     m1_dat_wr := master_1.dat_wr
+    /// Master 0 byte-select.
     wire m0_sel : Word[4]
     m0_sel := master_0.sel
+    /// Master 1 byte-select.
     wire m1_sel : Word[4]
     m1_sel := master_1.sel
 
+    /// Client socket for the shared slave.
+    ///
+    /// Selects the granted master's signals and fans out acks/errors back.
     client socket slave_0 of Wishbone {
         it.cyc  := (grant_0 && m0_cyc) || (grant_1 && m1_cyc)
         it.stb  := (grant_0 && m0_stb) || (grant_1 && m1_stb)
@@ -109,12 +156,17 @@ mod WbArb21 {
         master_1.dat_rd  := it.dat_rd
     }
 
+    /// Current arbiter state (Idle, ServingMaster0, ServingMaster1).
     reg serving : Serving on clock
+    /// Round-robin priority (Master0First or Master1First).
     reg priority : Priority on clock
 
+    /// Idle grant for master 0 (respects priority).
     wire idle_grant_0 : Bit
+    /// Idle grant for master 1 (respects priority).
     wire idle_grant_1 : Bit
 
+    // When idle, grant to the highest-priority requesting master.
     match priority {
         case @Master0First() => {
             idle_grant_0 := m0_cyc
@@ -126,9 +178,12 @@ mod WbArb21 {
         }
     }
 
+    /// Grant signal for master 0.
     wire grant_0 : Bit
+    /// Grant signal for master 1.
     wire grant_1 : Bit
 
+    // Grant the appropriate master based on `serving` state.
     match serving {
         case @Idle() => {
             grant_0 := idle_grant_0
@@ -144,10 +199,12 @@ mod WbArb21 {
         }
     }
 
+    /// Cycle-done indicator: the served master's transaction completed.
     wire cyc_done : Bit {
         it := (slave_0.ack || slave_0.err) && ((grant_0 && !m0_cyc) || (grant_1 && !m1_cyc))
     }
 
+    // Update `serving` state on reset and on transaction completion.
     serving <= if reset {
         @Idle()
     } else {
@@ -163,6 +220,7 @@ mod WbArb21 {
         }
     }
 
+    // Update round-robin priority on each completed transaction.
     if reset {
         priority <= @Master0First()
     } else {
@@ -179,18 +237,30 @@ mod WbArb21 {
     }
 }
 
-// WbMux12 -- 1-to-2 Wishbone address-space multiplexer.
+/// 1-to-2 Wishbone address-space multiplexer.
+///
+/// Routes Wishbone transactions from one master to one of two slaves
+/// based on address bit 31.  Slave 0 is selected when adr[31] == 0,
+/// slave 1 when adr[31] == 1.
 mod WbMux12 {
+    /// Global clock.
     incoming clock : Clock
+    /// Active-high reset.
     incoming reset : Bit
 
+    /// Client socket for slave 0 (adr[31] == 0).
     client socket slave_0 of Wishbone
+    /// Client socket for slave 1 (adr[31] == 1).
     client socket slave_1 of Wishbone
 
+    /// Slave-select line: 0 = slave_0, 1 = slave_1.
     wire sel : Bit {
         it := master_0.adr[31]
     }
 
+    /// Server socket for the upstream master.
+    ///
+    /// Routes strobe/cycle to the appropriate slave and muxes the response.
     server socket master_0 of Wishbone {
         slave_0.cyc  := it.cyc && !sel
         slave_0.stb  := it.stb && !sel
@@ -216,10 +286,12 @@ mod WbMux12 {
         }
     }
 
+    /// Handshake detected (strobe and ack from the selected slave).
     wire a_handshake : Bit {
         it := master_0.stb && (if sel { slave_1.ack } else { slave_0.ack })
     }
 
+    /// Registered slave-select state (used to mux read-data).
     reg serving : SelState on clock {
         if reset {
             it <= @Slave0()
@@ -232,6 +304,7 @@ mod WbMux12 {
         }
     }
 
+    /// Whether we are serving slave 1 (used for read-data mux).
     wire serving_slave1 : Bit {
         it := serving == @Slave1()
     }
@@ -246,7 +319,14 @@ mod WbMux12 {
 // Each master gets a WbMux12 that steers by address.
 // Each slave gets a WbArb21 that resolves master conflicts.
 // All internal wiring is done with socket bulk connect (:=:).
+
+/// 2×2 Wishbone crossbar.
+///
+/// Connects two Wishbone masters to two Wishbone slaves.
+/// Address bit 31 selects the slave.  A round-robin arbiter
+/// resolves contention when both masters target the same slave.
 mod WbXbar22 {
+    /// Global clock (fanned out to all sub-modules).
     incoming clock : Clock {
         mux_0.clock := it
         mux_1.clock := it
@@ -254,6 +334,7 @@ mod WbXbar22 {
         arb_1.clock := it
     }
 
+    /// Active-high reset (fanned out to all sub-modules).
     incoming reset : Bit {
         mux_0.reset := it
         mux_1.reset := it
@@ -261,25 +342,33 @@ mod WbXbar22 {
         arb_1.reset := it
     }
 
+    /// Server socket for master 0.
     server socket master_0 of Wishbone
+    /// Server socket for master 1.
     server socket master_1 of Wishbone
+    /// Client socket for slave 0.
     client socket slave_0  of Wishbone
+    /// Client socket for slave 1.
     client socket slave_1  of Wishbone
 
+    /// Address-space mux for master 0.
     mod mux_0 of WbMux12 {
         it.master_0 :=: master_0
     }
 
+    /// Address-space mux for master 1.
     mod mux_1 of WbMux12 {
         it.master_0 :=: master_1
     }
 
+    /// Round-robin arbiter for slave 0.
     mod arb_0 of WbArb21 {
         it.master_0 :=: mux_0.slave_0   // master_0 -> slave_0 path
         it.master_1 :=: mux_1.slave_0   // master_1 -> slave_0 path
         slave_0 :=: it.slave_0
     }
 
+    /// Round-robin arbiter for slave 1.
     mod arb_1 of WbArb21 {
         it.master_0 :=: mux_0.slave_1   // master_0 -> slave_1 path
         it.master_1 :=: mux_1.slave_1   // master_1 -> slave_1 path

@@ -1,33 +1,66 @@
+/// SPI flash controller.
+///
+/// This package provides an SPI master that reads from a SPI NOR flash
+/// using the standard 0x03 (READ) command, and a Spi socket definition.
+
+/// SPI flash controller FSM state.
 enum type State width 4 {
+    /// Idle: waiting for a read request.
     Idle = 1
+    /// Send: transmitting the command and address to the flash.
     Send = 2
+    /// Recv: receiving data from the flash.
     Recv = 4
+    /// Done: data available for the requesting master.
     Done = 8
 }
 
+/// SPI bus socket.
+///
+/// Signals are from the master's perspective: cs (chip-select, active-low),
+/// clk (serial clock), do (master-out, slave-in), di (master-in, slave-out).
 socket Spi {
+    /// Chip-select (active-low).
     cosi cs : Bit
+    /// Serial clock.
     cosi clk : Bit
+    /// Master data output (MOSI).
     cosi do : Bit
+    /// Slave data input (MISO).
     ciso di : Bit
 }
 
+/// SPI flash memory reader.
+///
+/// Reads 32-bit words from an SPI NOR flash using the 0x03 command.
+/// Provides a simple memory-mapped read interface to an attached master.
 mod SpiFlash {
+    /// Global clock.
     incoming clock : Clock
+    /// Global reset (active-high).
     incoming reset : Reset
 
+    /// SPI bus client socket.
     client socket spi of Spi
 
+    /// Memory-mapped read address.
     incoming mem_addr : Word[32]
+    /// Read-enable strobe from the master.
     incoming mem_read_enable : Bit
 
+    /// Read data output (valid when `mem_read_data_valid` is high).
     outgoing mem_read_data : Word[32]
+    /// Read-data valid indicator.
     outgoing mem_read_data_valid : Bit
 
+    /// FSM state register.
     reg state : State on clock
 
+    /// Serial send buffer (command + address to transmit).
     reg send_buffer : Word[32] on clock
+    /// Serial receive buffer (incoming bits from the flash).
     reg recv_buffer : Word[32] on clock
+    /// Accumulated read data (built up during the Recv state).
     reg data : Word[32] on clock // for DONE state
     data <=
         if half_clock {
@@ -36,21 +69,28 @@ mod SpiFlash {
             data
         }
 
+    /// Count of bits sent (0–31).
     reg bits_sent : Word[6] on clock
+    /// Count of bits received (0–31).
     reg bits_read : Word[6] on clock
 
+    /// Half-clock divider. Toggles every cycle to produce SPI clock edges.
     reg half_clock : Bit on clock
 
+    // Toggle half_clock every cycle.
     half_clock <= if reset {
         false
     } else {
         !half_clock
     }
 
+    /// SPI clock register (inverted every cycle when active).
     reg spi_clk_reg : Bit on clock
     spi.clk := spi_clk_reg
+    // Invert SPI clock every cycle.
     spi_clk_reg <= !spi_clk_reg
 
+    // FSM next-state logic.
     state <=
         if reset {
             #Idle
@@ -78,6 +118,7 @@ mod SpiFlash {
             }
         }
 
+    // Shift out the send buffer (0x03 command + 24-bit address).
     send_buffer <=
         if half_clock {
             if state == #Idle { // IDLE
@@ -91,6 +132,7 @@ mod SpiFlash {
             send_buffer
         }
 
+    // Shift in the receive buffer.
     recv_buffer <=
         if half_clock {
             if state == #Send { // SEND
@@ -105,6 +147,7 @@ mod SpiFlash {
             recv_buffer
         }
 
+    // Count transmitted bits.
     bits_sent <=
         if half_clock {
             if state == #Idle { // IDLE
@@ -118,6 +161,7 @@ mod SpiFlash {
             bits_sent
         }
 
+    // Count received bits.
     bits_read <=
         if half_clock {
             if state == #Send { // SEND
@@ -132,6 +176,7 @@ mod SpiFlash {
             bits_read
         }
 
+    // Chip-select: active-low, asserted during Send/Recv.
     spi.cs :=
         if reset {
             true
@@ -143,6 +188,7 @@ mod SpiFlash {
             false
         }
 
+    // Master data output: most-significant bit of send_buffer during Send, idle-high otherwise.
     spi.do :=
         if reset {
             true
@@ -154,6 +200,7 @@ mod SpiFlash {
             }
         }
 
+    // Read data output (big-endian byte swap for 32-bit word).
     mem_read_data :=
         if state == #Done { // DONE
             word(data[8..0], data[16..8], data[24..16], data[32..24])
@@ -161,5 +208,6 @@ mod SpiFlash {
             0xffffffffw32
         }
 
+    // Read data valid: high only in the Done state.
     mem_read_data_valid := state == #Done // DONE
 }
