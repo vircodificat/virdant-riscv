@@ -1,9 +1,16 @@
+//! This is the CPU core tile
+//!
+//! This needs to be integrated into a SoC subsystem
+
 import rf
 import alu
 import control
 import idecode
 import wishbone
 
+/// A RISC-V CPU core
+///
+/// This implements RV32I and passes all rv32iu tests in riscv-tests.
 mod Cpu {
     incoming clock : Clock
     incoming reset : Reset
@@ -25,6 +32,8 @@ mod Cpu {
         it.we  := control.mem_write
         it.stb := control.mem_strobe
         it.cyc := control.mem_strobe
+
+        control.mem_ack := it.ack
     }
 
     reg pc : Word[32] on clock {
@@ -51,7 +60,7 @@ mod Cpu {
     reg stage : opcode::CpuStage on clock {
         if reset {
             it <= #Reset
-        } else if !stall {
+        } else if !control.stall {
             match stage {
                 case #Reset => {
                     it <= #Fetching
@@ -77,14 +86,6 @@ mod Cpu {
                     mem.adr := dontcare
                 }
             }
-        }
-    }
-
-    wire stall : Bit {
-        it := match stage {
-            case #Fetching => !mem.ack
-            case #Execute => idecode.opcode == #LOAD && !mem.ack
-            else => false
         }
     }
 

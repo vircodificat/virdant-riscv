@@ -261,6 +261,16 @@ mod Control {
     }
 
     outgoing is_break : Bit
+
+    incoming mem_ack : Bit
+
+    outgoing stall : Bit {
+        it := match stage {
+            case #Fetching => !mem_ack
+            case #Execute => opcode == #LOAD && !mem_ack
+            else => false
+        }
+    }
 }
 
 mod AluOpFromFunct37 {
