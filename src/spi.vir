@@ -64,10 +64,10 @@ mod SpiFlash {
     reg data : Word[32] on clock // for DONE state
     data <=
         if half_clock {
-            word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
-        } else {
-            data
-        }
+        word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
+    } else {
+        data
+    }
 
     /// Count of bits sent (0–31).
     reg bits_sent : Word[6] on clock
@@ -93,120 +93,120 @@ mod SpiFlash {
     // FSM next-state logic.
     state <=
         if reset {
-            #Idle
-        } else {
-            if state == #Idle { // IDLE
-                if mem_read_enable {
-                    #Send
-                } else {
-                    #Idle
-                }
-            } else if state == #Send { // SEND
-                if bits_sent < 31 {
-                    #Send
-                } else {
-                    #Recv
-                }
-            } else if state == #Recv { // RECV
-                if bits_read < 31 {
-                    #Recv
-                } else {
-                    #Done
-                }
+        #Idle
+    } else {
+        if state == #Idle { // IDLE
+            if mem_read_enable {
+                #Send
             } else {
                 #Idle
             }
+        } else if state == #Send { // SEND
+            if bits_sent < 31 {
+                #Send
+            } else {
+                #Recv
+            }
+        } else if state == #Recv { // RECV
+            if bits_read < 31 {
+                #Recv
+            } else {
+                #Done
+            }
+        } else {
+            #Idle
         }
+    }
 
     // Shift out the send buffer (0x03 command + 24-bit address).
     send_buffer <=
         if half_clock {
-            if state == #Idle { // IDLE
-                word(0x03w8, mem_addr[24..0])
-            } else if state == #Send {
-                word(send_buffer[31..0], 0w1)
-            } else {
-                0
-            }
+        if state == #Idle { // IDLE
+            word(0x03w8, mem_addr[24..0])
+        } else if state == #Send {
+            word(send_buffer[31..0], 0w1)
         } else {
-            send_buffer
+            0
         }
+    } else {
+        send_buffer
+    }
 
     // Shift in the receive buffer.
     recv_buffer <=
         if half_clock {
-            if state == #Send { // SEND
-                0
-            } else if state == #Send { // SEND
-                word(recv_buffer[31..0], spi.di)
+        if state == #Send { // SEND
+            0
+        } else if state == #Send { // SEND
+            word(recv_buffer[31..0], spi.di)
 
-            } else {
-                0
-            }
         } else {
-            recv_buffer
+            0
         }
+    } else {
+        recv_buffer
+    }
 
     // Count transmitted bits.
     bits_sent <=
         if half_clock {
-            if state == #Idle { // IDLE
-                0
-            } else if state == #Send { // SEND
-                bits_sent + 1
-            } else {
-                0
-            }
+        if state == #Idle { // IDLE
+            0
+        } else if state == #Send { // SEND
+            bits_sent + 1
         } else {
-            bits_sent
+            0
         }
+    } else {
+        bits_sent
+    }
 
     // Count received bits.
     bits_read <=
         if half_clock {
-            if state == #Send { // SEND
-                0
-            } else if state == #Send { // SEND
-                bits_read + 1
+        if state == #Send { // SEND
+            0
+        } else if state == #Send { // SEND
+            bits_read + 1
 
-            } else {
-                0
-            }
         } else {
-            bits_read
+            0
         }
+    } else {
+        bits_read
+    }
 
     // Chip-select: active-low, asserted during Send/Recv.
     spi.cs :=
         if reset {
-            true
-        } else if state == #Idle { // IDLE
-            true
-        } else if state == #Done { // DONE
-            true
-        } else {
-            false
-        }
+        true
+    } else if state == #Idle { // IDLE
+        true
+    } else if state == #Done { // DONE
+        true
+    } else {
+        false
+    }
 
     // Master data output: most-significant bit of send_buffer during Send, idle-high otherwise.
     spi.do :=
         if reset {
-            true
+        true
+    } else {
+        if state == #Send { // SEND
+            send_buffer[31]
         } else {
-            if state == #Send { // SEND
-                send_buffer[31]
-            } else {
-                true
-            }
+            true
         }
+    }
 
     // Read data output (big-endian byte swap for 32-bit word).
     mem_read_data :=
         if state == #Done { // DONE
-            word(data[8..0], data[16..8], data[24..16], data[32..24])
-        } else {
-            0xffffffffw32
-        }
+        word(data[8..0], data[16..8], data[24..16], data[32..24])
+    } else {
+        0xffffffffw32
+    }
 
     // Read data valid: high only in the Done state.
     mem_read_data_valid := state == #Done // DONE

@@ -36,28 +36,28 @@ mod IDecode {
     // Map raw opcode bits to the `Opcode` enum.
     opcode :=
         if opcode_bits ==  99 { #BRANCH }
-        else if opcode_bits ==  103 { #JALR }
-        else if opcode_bits ==  111 { #JAL }
-        else if opcode_bits ==  19 { #OP_IMM }
-        else if opcode_bits ==  51 { #OP }
-        else if opcode_bits ==  55 { #LUI }
-        else if opcode_bits ==  3 { #LOAD }
-        else if opcode_bits ==  115 { #SYSTEM }
-        else if opcode_bits ==  35 { #STORE }
-        else if opcode_bits ==  23 { #AUIPC }
-        else if opcode_bits ==  15 { #FENCE }
-        else { #SYSTEM }
+    else if opcode_bits ==  103 { #JALR }
+    else if opcode_bits ==  111 { #JAL }
+    else if opcode_bits ==  19 { #OP_IMM }
+    else if opcode_bits ==  51 { #OP }
+    else if opcode_bits ==  55 { #LUI }
+    else if opcode_bits ==  3 { #LOAD }
+    else if opcode_bits ==  115 { #SYSTEM }
+    else if opcode_bits ==  35 { #STORE }
+    else if opcode_bits ==  23 { #AUIPC }
+    else if opcode_bits ==  15 { #FENCE }
+    else { #SYSTEM }
 
     // Extract `rd` from `instr[11:7]`.
-    rd      := instr[12..7]
+    rd := instr[12..7]
     // Extract `rs1` from `instr[19:15]`.
-    rs1     := instr[20..15]
+    rs1 := instr[20..15]
     // Extract `rs2` from `instr[24:20]`.
-    rs2     := instr[25..20]
+    rs2 := instr[25..20]
     // Extract `funct3` from `instr[14:12]`.
-    funct3  := instr[15..12]
+    funct3 := instr[15..12]
     // Extract `funct7` from `instr[31:25]`.
-    funct7  := instr[32..25]
+    funct7 := instr[32..25]
     // Extract `funct12` from `instr[31:20]`.
     funct12 := instr[32..20]
 

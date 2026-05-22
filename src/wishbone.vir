@@ -28,24 +28,24 @@
 /// All signals are from the master's perspective.
 socket Wishbone {
     /// Cycle start: the master asserts this for the duration of a bus transaction.
-    cosi cyc     : Bit
+    cosi cyc : Bit
     /// Strobe: the master asserts this during the data phase.
-    cosi stb     : Bit
+    cosi stb : Bit
     /// Write enable: high for write, low for read.
-    cosi we      : Bit
+    cosi we : Bit
     /// Address (32-bit byte address).
-    cosi adr     : Word[32]
+    cosi adr : Word[32]
     /// Write data.
-    cosi dat_wr  : Word[32]
+    cosi dat_wr : Word[32]
     /// Byte-select mask (one hot per byte lane).
-    cosi sel     : Word[4]
+    cosi sel : Word[4]
 
     /// Acknowledge: the slave asserts this when the transfer is complete.
-    ciso ack     : Bit
+    ciso ack : Bit
     /// Error: the slave asserts this on an error.
-    ciso err     : Bit
+    ciso err : Bit
     /// Read data.
-    ciso dat_rd  : Word[32]
+    ciso dat_rd : Word[32]
 }
 
 // --- Shared building blocks --------------------------------------------------
@@ -133,8 +133,8 @@ mod WbArb21 {
     ///
     /// Selects the granted master's signals and fans out acks/errors back.
     client socket slave_0 of Wishbone {
-        it.cyc  := (grant_0 && m0_cyc) || (grant_1 && m1_cyc)
-        it.stb  := (grant_0 && m0_stb) || (grant_1 && m1_stb)
+        it.cyc := (grant_0 && m0_cyc) || (grant_1 && m1_cyc)
+        it.stb := (grant_0 && m0_stb) || (grant_1 && m1_stb)
 
         if grant_0 {
             it.we     := m0_we
@@ -142,18 +142,18 @@ mod WbArb21 {
             it.dat_wr := m0_dat_wr
             it.sel    := m0_sel
         } else {
-            it.we     :=  m1_we
-            it.adr    :=  m1_adr
-            it.dat_wr :=  m1_dat_wr
-            it.sel    :=  m1_sel
+            it.we     := m1_we
+            it.adr    := m1_adr
+            it.dat_wr := m1_dat_wr
+            it.sel    := m1_sel
         }
 
-        master_0.ack     := it.ack && grant_0
-        master_1.ack     := it.ack && grant_1
-        master_0.err     := it.err && grant_0
-        master_1.err     := it.err && grant_1
-        master_0.dat_rd  := it.dat_rd
-        master_1.dat_rd  := it.dat_rd
+        master_0.ack    := it.ack && grant_0
+        master_1.ack    := it.ack && grant_1
+        master_0.err    := it.err && grant_0
+        master_1.err    := it.err && grant_1
+        master_0.dat_rd := it.dat_rd
+        master_1.dat_rd := it.dat_rd
     }
 
     /// Current arbiter state (Idle, ServingMaster0, ServingMaster1).
@@ -211,8 +211,8 @@ mod WbArb21 {
         match serving {
             case @Idle() =>
                 if idle_grant_0 { @ServingMaster0() }
-                else if idle_grant_1 { @ServingMaster1() }
-                else { @Idle() }
+            else if idle_grant_1 { @ServingMaster1() }
+            else { @Idle() }
             case @ServingMaster0() =>
                 if cyc_done { @Idle() } else { @ServingMaster0() }
             case @ServingMaster1() =>
@@ -262,19 +262,19 @@ mod WbMux12 {
     ///
     /// Routes strobe/cycle to the appropriate slave and muxes the response.
     server socket master_0 of Wishbone {
-        slave_0.cyc  := it.cyc && !sel
-        slave_0.stb  := it.stb && !sel
-        slave_0.we   := it.we
-        slave_0.adr  := it.adr
+        slave_0.cyc    := it.cyc && !sel
+        slave_0.stb    := it.stb && !sel
+        slave_0.we     := it.we
+        slave_0.adr    := it.adr
         slave_0.dat_wr := it.dat_wr
-        slave_0.sel  := it.sel
+        slave_0.sel    := it.sel
 
-        slave_1.cyc  := it.cyc &&  sel
-        slave_1.stb  := it.stb &&  sel
-        slave_1.we   := it.we
-        slave_1.adr  := it.adr
+        slave_1.cyc    := it.cyc &&  sel
+        slave_1.stb    := it.stb &&  sel
+        slave_1.we     := it.we
+        slave_1.adr    := it.adr
         slave_1.dat_wr := it.dat_wr
-        slave_1.sel  := it.sel
+        slave_1.sel    := it.sel
 
         it.ack := if sel { slave_1.ack } else { slave_0.ack }
         it.err := if sel { slave_1.err } else { slave_0.err }
@@ -365,13 +365,13 @@ mod WbXbar22 {
     mod arb_0 of WbArb21 {
         it.master_0 :=: mux_0.slave_0   // master_0 -> slave_0 path
         it.master_1 :=: mux_1.slave_0   // master_1 -> slave_0 path
-        slave_0 :=: it.slave_0
+        slave_0     :=: it.slave_0
     }
 
     /// Round-robin arbiter for slave 1.
     mod arb_1 of WbArb21 {
         it.master_0 :=: mux_0.slave_1   // master_0 -> slave_1 path
         it.master_1 :=: mux_1.slave_1   // master_1 -> slave_1 path
-        slave_1 :=: it.slave_0
+        slave_1     :=: it.slave_0
     }
 }

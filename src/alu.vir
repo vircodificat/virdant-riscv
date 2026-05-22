@@ -22,9 +22,9 @@ mod Alu {
 
     /// Barrel shifter sub-module used for SLL, SRL, and SRA.
     mod shifter of Shifter {
-        it.a := a
+        it.a      := a
         it.amount := b[5..0]
-        it.dir := match op {
+        it.dir    := match op {
             case #Sll => #ShiftLeftLogical
             case #Srl => #ShiftRightLogical
             case #Sra => #ShiftRightArithmetic

@@ -26,16 +26,16 @@ mod Cpu {
     client socket mem of wishbone::Wishbone {
         unused it.err
 
-        it.sel := control.mem_sel
+        it.sel    := control.mem_sel
         it.dat_wr := match idecode.funct3[2..0] {
             case 0b00 => word(rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0])
             case 0b01 => word(rf.rs2_out[16..0], rf.rs2_out[16..0])
             case 0b10 => rf.rs2_out
             else      => rf.rs2_out
         }
-        it.we  := control.mem_write
-        it.stb := control.mem_strobe
-        it.cyc := control.mem_strobe
+        it.we     := control.mem_write
+        it.stb    := control.mem_strobe
+        it.cyc    := control.mem_strobe
 
         control.mem_ack := it.ack
     }
@@ -73,31 +73,31 @@ mod Cpu {
     /// Stalls when `control.stall` is asserted.
     reg stage : opcode::CpuStage on clock {
         if reset {
-            it <= #Reset
+            it         <= #Reset
         } else if !control.stall {
             match stage {
                 case #Reset => {
-                    it <= #Fetching
+                    it         <= #Fetching
                 }
                 case #Fetching => {
-                    it <= #Execute
-                    mem.adr := pc
-                    instr <= mem.dat_rd
+                    it         <= #Execute
+                    mem.adr    := pc
+                    instr      <= mem.dat_rd
                 }
                 case #Execute => {
-                    it <= #Writeback
-                    mem.adr := alu.z
+                    it         <= #Writeback
+                    mem.adr    := alu.z
                     mem_buffer <= mem.dat_rd
                 }
                 case #Writeback => {
                     if control.is_break {
-                        it <= #Breaked
+                        it         <= #Breaked
                     } else {
-                        it <= #Fetching
+                        it         <= #Fetching
                     }
                 }
                 case #Breaked => {
-                    mem.adr := dontcare
+                    mem.adr    := dontcare
                 }
             }
         }
@@ -107,26 +107,26 @@ mod Cpu {
     mod idecode of idecode::IDecode {
         it.instr := instr
 
-        control.funct3   := it.funct3
-        control.funct7   := it.funct7
-        control.funct12  := it.funct12
-        control.opcode   := it.opcode
+        control.funct3  := it.funct3
+        control.funct7  := it.funct7
+        control.funct12 := it.funct12
+        control.opcode  := it.opcode
     }
 
     /// Register file sub-module.
     mod rf of rf::Rf {
         it.clock := clock
-        it.rd  := idecode.rd
-        it.rs1 := idecode.rs1
-        it.rs2 :=
+        it.rd    := idecode.rd
+        it.rs1   := idecode.rs1
+        it.rs2   :=
             if stage == #Breaked {
-                10w5 // a0, the return code
-            } else {
-                idecode.rs2
-            }
+            10w5 // a0, the return code
+        } else {
+            idecode.rs2
+        }
         it.write := control.rf_write && stage == #Writeback
 
-        it.rd_in  := match control.rd_source {
+        it.rd_in := match control.rd_source {
             case #Imm       => idecode.imm
             case #PcPlusImm => pc + idecode.imm
             case #PcPlus4   => pc + 4
@@ -162,15 +162,15 @@ mod Cpu {
             }
             case 0b01 => {
                 if control.unsigned_load {
-                     it:= zext((match alu.z[2..1] {
-                         case 0 => mem_buffer[16.. 0]
-                         case 1 => mem_buffer[32..16]
-                        }) : Word[16])
+                    it := zext((match alu.z[2..1] {
+                        case 0 => mem_buffer[16.. 0]
+                        case 1 => mem_buffer[32..16]
+                    }) : Word[16])
                 } else {
-                     it:= sext((match alu.z[2..1] {
-                         case 0 => mem_buffer[16.. 0]
-                         case 1 => mem_buffer[32..16]
-                        }) : Word[16])
+                    it := sext((match alu.z[2..1] {
+                        case 0 => mem_buffer[16.. 0]
+                        case 1 => mem_buffer[32..16]
+                    }) : Word[16])
                 }
             }
             case 0b10 => {
@@ -203,9 +203,9 @@ mod Cpu {
 
     /// CSR file sub-module.
     mod csrs of mem::Csrs {
-        it.clock := clock
-        it.addr := control.csr
-        it.write := control.csr_rw && stage == #Execute
+        it.clock   := clock
+        it.addr    := control.csr
+        it.write   := control.csr_rw && stage == #Execute
         it.data_in := rf.rs1_out
     }
 

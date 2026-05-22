@@ -16,9 +16,9 @@ mod WbMem {
     /// Wishbone server socket accepting transactions from a master.
     server socket wb of wishbone::Wishbone {
         // Acknowledge every strobe immediately (single-cycle memory).
-        it.ack    := it.stb
+        it.ack := it.stb
         // No error responses.
-        it.err    := false
+        it.err := false
 
         unused it.sel
     }
@@ -31,7 +31,7 @@ mod WbMem {
         it.write   := wb.cyc && wb.stb && wb.we
         wb.dat_rd  := it.data_out
         it.read    := wb.cyc && wb.stb && !wb.we
-        it.sel    := wb.sel
+        it.sel     := wb.sel
     }
 }
 
@@ -43,16 +43,16 @@ ext mod Mem {
     /// Global clock.
     incoming clock : Clock
     /// Read/write address.
-    incoming addr     : Word[32]
+    incoming addr : Word[32]
     /// Data read from `addr`.
     outgoing data_out : Word[32]
     /// Data to write into `addr` (used when `write` is high).
-    incoming data_in  : Word[32]
+    incoming data_in : Word[32]
     /// Write enable.
-    incoming write  : Bit
+    incoming write : Bit
     /// Read enable.
-    incoming read  : Bit
-    incoming sel      : Word[4]
+    incoming read : Bit
+    incoming sel  : Word[4]
 }
 
 /// External CSR (control and status register) file.
@@ -63,11 +63,11 @@ ext mod Csrs {
     /// Global clock.
     incoming clock : Clock
     /// CSR address (12-bit, see `opcode::Csr`).
-    incoming addr     : Word[12]
+    incoming addr : Word[12]
     /// Data read from the selected CSR.
     outgoing data_out : Word[32]
     /// Data to write into the selected CSR.
-    incoming data_in  : Word[32]
+    incoming data_in : Word[32]
     /// Write enable.
-    incoming write  : Bit
+    incoming write : Bit
 }

@@ -11,14 +11,14 @@ ext mod Rf {
     incoming clock : Clock
 
     /// Write destination register index (0–31).
-    incoming rd  : Word[5]
+    incoming rd : Word[5]
     /// First source register index (0–31).
     incoming rs1 : Word[5]
     /// Second source register index (0–31).
     incoming rs2 : Word[5]
 
     /// Data to write into `rd`.
-    incoming rd_in   : Word[32]
+    incoming rd_in : Word[32]
     /// Write-enable strobe: when high, `rd_in` is written into `rd` on the clock edge.
     incoming write : Bit
 

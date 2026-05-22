@@ -50,28 +50,28 @@ enum type RdSource width 6 {
 /// control, memory strobes, CSR access, and pipeline stall logic.
 mod Control {
     /// Primary opcode from the instruction.
-    incoming opcode  : opcode::Opcode
+    incoming opcode : opcode::Opcode
     /// Function-3 field from the instruction.
-    incoming funct3  : Word[3]
+    incoming funct3 : Word[3]
     /// Function-7 field from the instruction.
-    incoming funct7  : Word[7]
+    incoming funct7 : Word[7]
     /// Function-12 field from the instruction (used for SYSTEM/CSR).
     incoming funct12 : Word[12]
     /// ALU zero/flag output (used for branch evaluation).
-    incoming alu_z   : Word[32]
+    incoming alu_z : Word[32]
 
     // Decode each opcode into control signals.
     match opcode {
         // Branch instructions (B-type).
         case #BRANCH => {
-            write_to_mem     := false
-            rf_write      := false
-            take_branch   := alu_z[0]
-            csr_rw        := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Rs2
-            rd_source     := #AluZ
-            alu_op        := match funct3 {
+            write_to_mem := false
+            rf_write     := false
+            take_branch  := alu_z[0]
+            csr_rw       := false
+            alu_source_a := #Rs1
+            alu_source_b := #Rs2
+            rd_source    := #AluZ
+            alu_op       := match funct3 {
                 case 0 => #Eq
                 case 1 => #Neq
                 case 4 => #Lt
@@ -80,145 +80,145 @@ mod Control {
                 case 7 => #Gteu
                 else   => dontcare
             }
-            csr           := dontcare
+            csr          := dontcare
         }
         // Jump-and-link register (I-type).
         case #JALR => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := true
-            csr_rw        := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Imm
-            rd_source     := #PcPlus4
-            alu_op        := #Zero
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := true
+            csr_rw       := false
+            alu_source_a := #Rs1
+            alu_source_b := #Imm
+            rd_source    := #PcPlus4
+            alu_op       := #Zero
+            csr          := dontcare
         }
         // Jump-and-link (J-type).
         case #JAL => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := true
-            csr_rw        := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Rs2
-            rd_source     := #PcPlus4
-            alu_op        := #Zero
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := true
+            csr_rw       := false
+            alu_source_a := #Rs1
+            alu_source_b := #Rs2
+            rd_source    := #PcPlus4
+            alu_op       := #Zero
+            csr          := dontcare
         }
         // Immediate ALU operations (I-type).
         case #OP_IMM => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := false
-            csr_rw        := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Imm
-            rd_source     := #AluZ
-            alu_op        := alu_op_from_funct37.op
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := false
+            csr_rw       := false
+            alu_source_a := #Rs1
+            alu_source_b := #Imm
+            rd_source    := #AluZ
+            alu_op       := alu_op_from_funct37.op
+            csr          := dontcare
         }
         // Register-register ALU operations (R-type).
         case #OP => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Rs2
-            rd_source     := #AluZ
-            alu_op        := alu_op_from_funct37.op
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Rs1
+            alu_source_b := #Rs2
+            rd_source    := #AluZ
+            alu_op       := alu_op_from_funct37.op
+            csr          := dontcare
         }
         // Load upper immediate (U-type).
         case #LUI => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Imm
-            rd_source     := #Imm
-            alu_op        := #Zero
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Rs1
+            alu_source_b := #Imm
+            rd_source    := #Imm
+            alu_op       := #Zero
+            csr          := dontcare
         }
         // Add upper immediate to PC (U-type).
         case #AUIPC => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Pc
-            alu_source_b  := #Imm
-            rd_source     := #PcPlusImm
-            alu_op        := #Add
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Pc
+            alu_source_b := #Imm
+            rd_source    := #PcPlusImm
+            alu_op       := #Add
+            csr          := dontcare
         }
         // Load instructions (I-type).
         case #LOAD => {
-            write_to_mem     := false
-            rf_write      := true
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Imm
-            rd_source     := #Mem
-            alu_op        := #Add
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := true
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Rs1
+            alu_source_b := #Imm
+            rd_source    := #Mem
+            alu_op       := #Add
+            csr          := dontcare
         }
         // Store instructions (S-type).
         case #STORE => {
-            write_to_mem     := true
-            rf_write      := false
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Imm
-            rd_source     := #AluZ
-            alu_op        := #Add
-            csr           := dontcare
+            write_to_mem := true
+            rf_write     := false
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Rs1
+            alu_source_b := #Imm
+            rd_source    := #AluZ
+            alu_op       := #Add
+            csr          := dontcare
         }
         // Fence instructions.
         case #FENCE => {
-            write_to_mem     := false
-            rf_write      := false
-            take_branch   := false
-            csr_rw        := false
-            is_break      := false
-            alu_source_a  := #Rs1
-            alu_source_b  := #Rs2
-            rd_source     := #AluZ
-            alu_op        := dontcare
-            csr           := dontcare
+            write_to_mem := false
+            rf_write     := false
+            take_branch  := false
+            csr_rw       := false
+            is_break     := false
+            alu_source_a := #Rs1
+            alu_source_b := #Rs2
+            rd_source    := #AluZ
+            alu_op       := dontcare
+            csr          := dontcare
         }
         // System instructions (ECALL, EBREAK, MRET, SRET, WFI, CSR accesses).
         case #SYSTEM => {
-            write_to_mem     := false
+            write_to_mem := false
             // If funct3 == 0, this is a privileged instruction (MRET, SRET, ECALL, etc.).
             if funct3  == 0b000 {    // is Privileged?
-                is_break      := system_op.op == #Ecall || system_op.op == #Ebreak
-                csr_rw        := false
-                rf_write      := false
-                csr_rw        := false
-                take_branch   := false
-                csr := match system_op.op {
+                is_break     := system_op.op == #Ecall || system_op.op == #Ebreak
+                csr_rw       := false
+                rf_write     := false
+                csr_rw       := false
+                take_branch  := false
+                csr          := match system_op.op {
                     case #Mret => word(#MEpc : opcode::Csr)
                     case #Sret => dontcare // TODO
                     else       => dontcare
                 }
             } else {                 // is CSR access (CSRRW, CSRRS, CSRRC, etc.)
-                is_break      := false
-                csr_rw        := true
-                rf_write      := true
-                take_branch   := false
-                csr           := funct12
-                alu_source_a  := #Csr
-                alu_source_b  := match funct3 {
+                is_break     := false
+                csr_rw       := true
+                rf_write     := true
+                take_branch  := false
+                csr          := funct12
+                alu_source_a := #Csr
+                alu_source_b := match funct3 {
                     case 0b001 => #Rs1 //CsrRw
                     case 0b010 => #Rs1 //CsrRs
                     case 0b011 => #Rs1 //CsrRc
@@ -227,8 +227,8 @@ mod Control {
                     case 0b111 => #Imm //CsrRci
                     else => dontcare
                 }
-                rd_source     := #Csr
-                alu_op        := match funct3 {
+                rd_source    := #Csr
+                alu_op       := match funct3 {
                     case 0b001 => #PassA //CsrRw
                     case 0b010 => #Or    //CsrRs
                     case 0b011 => #Clear //CsrRc
@@ -261,25 +261,25 @@ mod Control {
     wire write_to_mem : Bit
 
     /// Memory write enable (high for STORE, low otherwise).
-    outgoing mem_write      : Bit {
-         it := write_to_mem && stage != #Fetching
+    outgoing mem_write : Bit {
+        it := write_to_mem && stage != #Fetching
     }
     /// Register-file write enable.
-    outgoing rf_write       : Bit
+    outgoing rf_write : Bit
     /// CSR read/write enable.
-    outgoing csr_rw         : Bit
+    outgoing csr_rw : Bit
     /// Branch taken (for JAL, JALR, and conditional branches).
-    outgoing take_branch    : Bit
+    outgoing take_branch : Bit
     /// Selector for ALU A-operand mux.
-    outgoing alu_source_a   : AluSourceA
+    outgoing alu_source_a : AluSourceA
     /// Selector for ALU B-operand mux.
-    outgoing alu_source_b   : AluSourceB
+    outgoing alu_source_b : AluSourceB
     /// Selector for register-file writeback mux.
-    outgoing rd_source      : RdSource
+    outgoing rd_source : RdSource
     /// ALU operation code (decoded from funct3/funct7).
-    outgoing alu_op         : opcode::AluOpcode
+    outgoing alu_op : opcode::AluOpcode
     /// CSR address (for CSR read/write instructions).
-    outgoing csr            : Word[12]
+    outgoing csr : Word[12]
 
     /// System-opcode decoder sub-module.
     mod system_op of SystemOpFromFunct12 {
@@ -299,13 +299,13 @@ mod Control {
                 // SB: select byte lane based on address bits [1:0]
                 case 0b00 =>
                     if alu_z[1] {
-                        if alu_z[0] { 0b1000 } else { 0b0100 }
-                    } else {
-                        if alu_z[0] { 0b0010 } else { 0b0001 }
-                    }
+                    if alu_z[0] { 0b1000 } else { 0b0100 }
+                } else {
+                    if alu_z[0] { 0b0010 } else { 0b0001 }
+                }
                 // SH: select halfword lane based on address bit [1]
                 case 0b01 => if alu_z[1] { 0b1100 } else { 0b0011 }
-                case 0b10 => 0b1111  // SW: all 4 bytes
+                case 0b10 => 0b1111  // SW : all 4 bytes
                 else      => dontcare
             }
         }
@@ -365,20 +365,20 @@ mod AluOpFromFunct37 {
         it := match funct3 {
             case 0 =>
                 if funct7[5] {
-                    #Sub
-                } else {
-                    #Add
-                }
+                #Sub
+            } else {
+                #Add
+            }
             case 1 => #Sll
             case 2 => #Lt
             case 3 => #Ltu
             case 4 => #Xor
             case 5 =>
                 if funct7[5] {
-                    #Sra
-                } else {
-                    #Srl
-                }
+                #Sra
+            } else {
+                #Srl
+            }
             case 6 => #Or
             case 7 => #And
         }

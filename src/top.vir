@@ -23,7 +23,7 @@ export mod Top {
     mod cpu of cpu::Cpu {
         it.clock := clock
         it.reset := reset
-        it.mem :=: mem.wb
+        it.mem   :=: mem.wb
     }
 
     /// Return code from the CPU (register a0 value at EBREAK).
