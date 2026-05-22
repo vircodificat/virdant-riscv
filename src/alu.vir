@@ -102,23 +102,23 @@ mod Shifter {
 
     /// Stage 1: shift right logical by 1.
     wire srl_1 : Word[32]
-    srl_1 := if amount[0] { zext(a[31..1]) } else { a }
+    srl_1 := if amount[0] { zext(a[32..1]) } else { a }
 
     /// Stage 2: shift right logical by 2.
     wire srl_2 : Word[32]
-    srl_2 := if amount[1] { zext(srl_1[31..2]) } else { srl_1 }
+    srl_2 := if amount[1] { zext(srl_1[32..2]) } else { srl_1 }
 
     /// Stage 4: shift right logical by 4.
     wire srl_4 : Word[32]
-    srl_4 := if amount[2] { zext(srl_2[31..4]) } else { srl_2 }
+    srl_4 := if amount[2] { zext(srl_2[32..4]) } else { srl_2 }
 
     /// Stage 8: shift right logical by 8.
     wire srl_8 : Word[32]
-    srl_8 := if amount[3] { zext(srl_4[31..8]) } else { srl_4 }
+    srl_8 := if amount[3] { zext(srl_4[32..8]) } else { srl_4 }
 
     /// Stage 16: shift right logical by 16.
     wire srl_16 : Word[32]
-    srl_16 := if amount[4] { zext(srl_8[31..16]) } else { srl_8 }
+    srl_16 := if amount[4] { zext(srl_8[32..16]) } else { srl_8 }
 
     /// Stage 1: shift right arithmetic by 1 (sign-extending).
     wire sra_1 : Word[32]

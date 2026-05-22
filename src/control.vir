@@ -245,9 +245,11 @@ mod Control {
     mod alu_op_from_funct37 of AluOpFromFunct37 {
         it.funct3 := funct3
         it.funct7 := if opcode == #OP {
-            funct7 // For opcode OP, there is a funct7...
+            funct7
+        } else if opcode == #OP_IMM && (funct3 == 1 || funct3 == 5) {
+            funct7 // Shift immediates (SLLI, SRLI, SRAI) use funct7[5]
         } else {
-            0w7 // But for opcode OP-IMM, there isn't, and we pass 0 instead
+            0w7
         }
     }
 
