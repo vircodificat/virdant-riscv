@@ -59,4 +59,4 @@ synth: $(VIR_SOURCES) $(SV_SOURCES)
 clean:
 	rm -rf build/
 	rm -f out.vcd
-	rm -rf riscv-tests/
+	make -C riscv-tests || exit 0
