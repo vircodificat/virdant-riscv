@@ -5,6 +5,7 @@ Runs each test with ./build/sim and reports PASS, FAIL, or TIMEOUT.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -34,6 +35,23 @@ def run_test(test_path, timeout=3):
     except Exception as e:
         print(f"Error running {test_path}: {e}", file=sys.stderr)
         return 'FAIL'
+
+def run_trace(test_name):
+    """Run trace.py and write output to trace/{test_name}.txt."""
+    trace_dir = Path("trace")
+    trace_dir.mkdir(exist_ok=True)
+    trace_file = trace_dir / f"{test_name}.txt"
+    try:
+        result = subprocess.run(
+            ["uv", "run", "trace.py"],
+            capture_output=True,
+            timeout=5,
+            text=True,
+        )
+        trace_file.write_text(result.stdout)
+    except Exception as e:
+        print(f"  Warning: failed to generate trace for {test_name}: {e}", file=sys.stderr)
+
 
 def main():
     # Find all rv32ui-p-* tests
@@ -70,6 +88,18 @@ def main():
             print("\033[33mTIMEOUT\033[0m")
         else:
             raise Exception
+
+        # Generate trace file for non-timed-out tests
+        if status != 'TIMEOUT':
+            run_trace(test_name)
+
+        # Copy VCD waveform dump to trace directory
+        if status != 'TIMEOUT':
+            vcd_src = Path("dump.vcd")
+            if vcd_src.exists():
+                trace_dir = Path("trace")
+                trace_dir.mkdir(exist_ok=True)
+                shutil.copy2(vcd_src, trace_dir / f"{test_name}.vcd")
 
         results.append(TestResult(test_name, status))
 
