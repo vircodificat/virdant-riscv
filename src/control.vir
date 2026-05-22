@@ -232,9 +232,16 @@ mod Control {
             it := 0b1111w4
         } else {
             it := match funct3[2..0] { // the top bit is unsignedness for loads
-                case 0b00 => 0b0001
-                case 0b01 => 0b0011
-                case 0b10 => 0b1111
+                // SB: select byte lane based on address bits [1:0]
+                case 0b00 =>
+                    if alu_z[1] {
+                        if alu_z[0] { 0b1000 } else { 0b0100 }
+                    } else {
+                        if alu_z[0] { 0b0010 } else { 0b0001 }
+                    }
+                // SH: select halfword lane based on address bit [1]
+                case 0b01 => if alu_z[1] { 0b1100 } else { 0b0011 }
+                case 0b10 => 0b1111  // SW: all 4 bytes
                 else      => dontcare
             }
         }

@@ -4,6 +4,7 @@ module \mem::Mem (
     input  wire     [31:0]  data_in,
     input  wire             read,
     input  wire             write,
+    input  wire     [3:0]   sel,
     output reg      [31:0]  data_out
 ); /* verilator public_module */
     // 64KiB: 16384 entries * 4 bytes = 64 * 1024 bytes
@@ -21,7 +22,12 @@ module \mem::Mem (
     always @(posedge clock) begin
         if (write) begin
 //            $display("Mem write: [0x%x] <= 0x%x", addr, data_in);
-            mem[addr[15:2]] <= data_in;
+            mem[addr[15:2]] <= {
+                sel[3] ? data_in[31:24] : mem[addr[15:2]][31:24],
+                sel[2] ? data_in[23:16] : mem[addr[15:2]][23:16],
+                sel[1] ? data_in[15:8]  : mem[addr[15:2]][15:8],
+                sel[0] ? data_in[7:0]   : mem[addr[15:2]][7:0]
+            };
         end
     end
 endmodule

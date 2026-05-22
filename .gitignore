@@ -2,3 +2,4 @@ build/
 *.vcd
 *.hex
 riscv-tests/
+trace/

@@ -16,6 +16,7 @@ mod WbMem {
         it.write   := wb.cyc && wb.stb && wb.we
         wb.dat_rd  := it.data_out
         it.read    := wb.cyc && wb.stb && !wb.we
+        it.sel    := wb.sel
     }
 }
 
@@ -41,6 +42,7 @@ ext mod Mem {
     incoming data_in  : Word[32]
     incoming write  : Bit
     incoming read  : Bit
+    incoming sel      : Word[4]
 }
 
 ext mod Csrs {

@@ -16,8 +16,12 @@ mod Cpu {
         unused it.err
 
         it.sel := control.mem_sel
-        it.dat_wr := rf.rs2_out
-
+        it.dat_wr := match idecode.funct3[2..0] {
+            case 0b00 => word(rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0])
+            case 0b01 => word(rf.rs2_out[16..0], rf.rs2_out[16..0])
+            case 0b10 => rf.rs2_out
+            else      => rf.rs2_out
+        }
         it.we  := control.mem_write
         it.stb := control.mem_strobe
         it.cyc := control.mem_strobe
