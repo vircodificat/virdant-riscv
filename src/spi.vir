@@ -30,7 +30,7 @@ socket Spi {
     /// Master data output (MOSI).
     cosi do : Bit
     /// Slave data input (MISO).
-    ciso di : Bit
+    soci di : Bit
 }
 
 /// SPI flash memory reader with Wishbone interface.
