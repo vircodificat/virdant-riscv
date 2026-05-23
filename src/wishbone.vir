@@ -14,7 +14,7 @@
 //                         --slave_1--> [ arb_1 ]
 //
 // Concepts demonstrated:
-//   - composing WbMux12 and WbArb21 into a larger fabric
+//   - composing WbAddrMuxBit and WbArb21 into a larger fabric
 //   - all inter-module wiring done exclusively with socket bulk connect (:=:)
 //   - forwarding top-level sockets down through the hierarchy
 
@@ -237,58 +237,72 @@ mod WbArb21 {
     }
 }
 
-/// 1-to-2 Wishbone address-space multiplexer.
+/// Shared Wishbone address router.
 ///
-/// Routes Wishbone transactions from one master to one of two slaves
-/// based on address bit 31.  Slave 0 is selected when adr[31] == 0,
-/// slave 1 when adr[31] == 1.
-mod WbMux12 {
+/// Routes transactions from one master to one of two slaves under the
+/// control of three decode signals (sel_0, sel_1, decode_err).  The
+/// handshake pipeline and read-data mux are factored out here so that
+/// address-decode variants (WbAddrMuxBit, WbAddrMuxNybble) can share
+/// the same routing logic.
+///
+/// ┌─ decode logic ──────┐   ┌─ WbAddrRouter ──────────┐
+/// │ adr ───→ sel_0      │   │                         │
+/// │        → sel_1      │──→│ master_0 → slave_0      │
+/// │        → decode_err │   │          → slave_1      │
+/// └─────────────────────┘   │          ← ack/err/dat  │
+///                           └─────────────────────────┘
+mod WbAddrRouter {
     /// Global clock.
     incoming clock : Clock
     /// Active-high reset.
     incoming reset : Bit
+    /// Select: route transaction to slave 0.
+    incoming sel_0 : Bit
+    /// Select: route transaction to slave 1.
+    incoming sel_1 : Bit
+    /// Decode error: no slave claims this address.
+    incoming decode_err : Bit
 
-    /// Client socket for slave 0 (adr[31] == 0).
+    /// Client socket for slave 0.
     client socket slave_0 of Wishbone
-    /// Client socket for slave 1 (adr[31] == 1).
+    /// Client socket for slave 1.
     client socket slave_1 of Wishbone
-
-    /// Slave-select line: 0 = slave_0, 1 = slave_1.
-    wire sel : Bit {
-        it := master_0.adr[31]
-    }
 
     /// Server socket for the upstream master.
     ///
-    /// Routes strobe/cycle to the appropriate slave and muxes the response.
+    /// Routes strobe/cycle to the selected slave, broadcasts the
+    /// remaining master signals, muxes the response, and generates
+    /// an error on decode_err.
     server socket master_0 of Wishbone {
-        slave_0.cyc    := it.cyc && !sel
-        slave_0.stb    := it.stb && !sel
+        slave_0.cyc := it.cyc && sel_0
+        slave_0.stb := it.stb && sel_0
+        slave_1.cyc := it.cyc && sel_1
+        slave_1.stb := it.stb && sel_1
+
         slave_0.we     := it.we
         slave_0.adr    := it.adr
         slave_0.dat_wr := it.dat_wr
         slave_0.sel    := it.sel
-
-        slave_1.cyc    := it.cyc &&  sel
-        slave_1.stb    := it.stb &&  sel
         slave_1.we     := it.we
         slave_1.adr    := it.adr
         slave_1.dat_wr := it.dat_wr
         slave_1.sel    := it.sel
 
-        it.ack := if sel { slave_1.ack } else { slave_0.ack }
-        it.err := if sel { slave_1.err } else { slave_0.err }
-
-        if serving_slave1 {
-            it.dat_rd := slave_1.dat_rd
+        if decode_err {
+            it.ack := false
+            it.err := it.cyc && it.stb
         } else {
-            it.dat_rd := slave_0.dat_rd
+            it.ack := (sel_0 && slave_0.ack) || (sel_1 && slave_1.ack)
+            it.err := (sel_0 && slave_0.err) || (sel_1 && slave_1.err)
         }
+
+        if serving_slave1 { it.dat_rd := slave_1.dat_rd }
+        else { it.dat_rd := slave_0.dat_rd }
     }
 
-    /// Handshake detected (strobe and ack from the selected slave).
+    /// Handshake detected: strobe active and the selected slave acknowledged.
     wire a_handshake : Bit {
-        it := master_0.stb && (if sel { slave_1.ack } else { slave_0.ack })
+        it := master_0.stb && ((sel_0 && slave_0.ack) || (sel_1 && slave_1.ack))
     }
 
     /// Registered slave-select state (used to mux read-data).
@@ -296,7 +310,7 @@ mod WbMux12 {
         if reset {
             it <= @Slave0()
         } else if a_handshake {
-            if sel {
+            if sel_1 {
                 it <= @Slave1()
             } else {
                 it <= @Slave0()
@@ -310,13 +324,118 @@ mod WbMux12 {
     }
 }
 
-// --- Crossbar ----------------------------------------------------------------
+/// 1-to-2 Wishbone address multiplexer (selects by bit 31).
+///
+/// Routes Wishbone transactions from one master to one of two slaves.
+/// Slave 0 is selected when adr[31] == 0, slave 1 when adr[31] == 1.
+///
+/// A thin wrapper around WbAddrRouter that computes sel_0/sel_1/decode_err
+/// from bit 31 of the incoming address.
+mod WbAddrMuxBit {
+    /// Global clock.
+    incoming clock : Clock
+    /// Active-high reset.
+    incoming reset : Bit
+
+    /// Client socket for slave 0 (adr[31] == 0).
+    client socket slave_0 of Wishbone
+    /// Client socket for slave 1 (adr[31] == 1).
+    client socket slave_1 of Wishbone
+
+    /// Server socket for the upstream master (forwarded to WbAddrRouter).
+    server socket master_0 of Wishbone
+
+    // --- Address decode ---
+    wire sel : Bit { it := master_0.adr[31] }
+    wire sel_0 : Bit { it := !sel }
+    wire sel_1 : Bit { it := sel }
+    wire decode_err : Bit { it := false }
+
+    /// Internal router instance.
+    mod router of WbAddrRouter {
+        it.clock      := clock
+        it.reset      := reset
+        it.sel_0      := sel_0
+        it.sel_1      := sel_1
+        it.decode_err := decode_err
+        it.master_0  :=: master_0
+        slave_0      :=: it.slave_0
+        slave_1      :=: it.slave_1
+    }
+}
+
+// --- Address Decoder (nybble) -----------------------------------------------------------
+//
+// Principled 1-to-N address decoder using the top address nybble.
+//
+// Unlike WbAddrMuxBit (which only checks bit 31), this decoder compares
+// the top four address bits (adr[31:28]) against an explicit base nybble
+// for each slave.  This gives 16 slots of 256 MB each, and adding a new
+// device is a matter of adding one select wire and one client socket.
+//
+// Memory map (current):
+//   0x2000_0000 – 0x2FFF_FFFF    SPI  (nybble 0x2)
+//   0x4000_0000 – 0x4FFF_FFFF    ---  (future device, nybble 0x4)
+//   0x8000_0000 – 0x8FFF_FFFF    RAM  (nybble 0x8)
+//
+// Accesses to unmapped regions return an error.
+
+/// 1-to-N Wishbone address multiplexer (selects by top address nybble).
+///
+/// Routes Wishbone transactions from one master to one of several slaves
+/// by comparing the top address nybble (bits [31:28]) against a per-slot
+/// base.  Unmapped addresses produce an error response.
+///
+/// A thin wrapper around WbAddrRouter that computes sel_0/sel_1/decode_err
+/// from the top address nybble.
+///
+/// Adding a new slave slot:
+///   1. Add a `client socket slave_N of Wishbone`
+///   2. Add a `wire sel_N : Bit { it := master_0.adr[32..28] == 0xNw4 }`
+///   3. Extend the routing and response logic inside master_0
+mod WbAddrMuxNybble {
+    /// Global clock.
+    incoming clock : Clock
+    /// Active-high reset.
+    incoming reset : Bit
+
+    /// Client sockets for slave devices.
+    client socket slave_0 of Wishbone   // nybble 0x2  (SPI at 0x2000_0000)
+    client socket slave_1 of Wishbone   // nybble 0x8  (RAM at 0x8000_0000)
+    //
+    // To add a new device at, say, 0x4000_0000:
+    //   1. Add `client socket slave_2 of Wishbone`
+    //   2. Add `wire sel_2 : Bit { it := master_0.adr[32..28] == 0x4w4 }`
+    //   3. Extend the routing and response logic inside master_0
+
+    /// Server socket for the upstream master (forwarded to WbAddrRouter).
+    server socket master_0 of Wishbone
+
+    // --- Address decode ---
+    wire sel_0 : Bit { it := master_0.adr[32..28] == 0x2w4 }
+    wire sel_1 : Bit { it := master_0.adr[32..28] == 0x8w4 }
+    wire decode_err : Bit { it := !(sel_0 || sel_1) }
+
+    /// Internal router instance.
+    mod router of WbAddrRouter {
+        it.clock      := clock
+        it.reset      := reset
+        it.sel_0      := sel_0
+        it.sel_1      := sel_1
+        it.decode_err := decode_err
+        it.master_0  :=: master_0
+        slave_0      :=: it.slave_0
+        slave_1      :=: it.slave_1
+    }
+}
+
+// --- Crossbar ----------------------------------------------------------------"}]
 
 // WbXbar22 -- 2x2 Wishbone crossbar.
 //   master_0, master_1  server sockets for the two requesting masters.
 //   slave_0, slave_1    client sockets for the two target slaves.
 //
-// Each master gets a WbMux12 that steers by address.
+// Each master gets a WbAddrMuxBit that steers by address.
 // Each slave gets a WbArb21 that resolves master conflicts.
 // All internal wiring is done with socket bulk connect (:=:).
 
@@ -352,12 +471,12 @@ mod WbXbar22 {
     client socket slave_1  of Wishbone
 
     /// Address-space mux for master 0.
-    mod mux_0 of WbMux12 {
+    mod mux_0 of WbAddrMuxBit {
         it.master_0 :=: master_0
     }
 
     /// Address-space mux for master 1.
-    mod mux_1 of WbMux12 {
+    mod mux_1 of WbAddrMuxBit {
         it.master_0 :=: master_1
     }
 
