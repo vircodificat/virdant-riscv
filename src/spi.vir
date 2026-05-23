@@ -1,8 +1,11 @@
-/// SPI flash controller.
-///
-/// This package provides an SPI master that reads from a SPI NOR flash
-/// using the standard 0x03 (READ) command, and a Spi socket definition.
+//! SPI flash controller with Wishbone interface.
+//!
+//! This package provides an SPI master that reads from a SPI NOR flash
+//! using the standard 0x03 (READ) command, and a Spi socket definition.
+import wishbone
 
+/// The SpiFlash module exposes a Wishbone B.4 slave interface.
+///
 /// SPI flash controller FSM state.
 enum type State width 4 {
     /// Idle: waiting for a read request.
@@ -30,31 +33,61 @@ socket Spi {
     ciso di : Bit
 }
 
-/// SPI flash memory reader.
+/// SPI flash memory reader with Wishbone interface.
 ///
 /// Reads 32-bit words from an SPI NOR flash using the 0x03 command.
-/// Provides a simple memory-mapped read interface to an attached master.
+/// Provides a standard Wishbone B.4 slave interface (read-only).
+/// Write transactions are terminated with an error response.
 mod SpiFlash {
     /// Global clock.
     incoming clock : Clock
     /// Global reset (active-high).
     incoming reset : Reset
 
+    /// Wishbone slave socket.
+    server socket wb of wishbone::Wishbone {
+        unused it.sel
+        unused it.dat_wr
+
+        // Acknowledge: asserted for one cycle when read data is ready.
+        it.ack := state == #Done && !reset
+
+        // Error: asserted on write transactions (this slave is read-only).
+        it.err := it.cyc && it.stb && it.we && !reset
+
+        // Read data: big-endian byte swap of the accumulated SPI data.
+        it.dat_rd := if state == #Done {
+            word(data[8..0], data[16..8], data[24..16], data[32..24])
+        } else {
+            dontcare
+        }
+    }
+
     /// SPI bus client socket.
-    client socket spi of Spi
+    client socket spi of Spi {
+        // Master data output: most-significant bit of send_buffer during Send, idle-high otherwise.
+        it.do := if reset {
+            true
+        } else {
+            match state {
+                case #Send => send_buffer[31]
+                else => true
+            }
+        }
 
-    /// Memory-mapped read address.
-    incoming mem_addr : Word[32]
-    /// Read-enable strobe from the master.
-    incoming mem_read_enable : Bit
+        // Chip-select: active-low, asserted during Send/Recv.
+        it.cs := if reset {
+            true
+        } else {
+            match state {
+                case #Send => false
+                case #Recv => false
+                else => true
+            }
+        }
 
-    /// Read data output (valid when `mem_read_data_valid` is high).
-    outgoing mem_read_data : Word[32]
-    /// Read-data valid indicator.
-    outgoing mem_read_data_valid : Bit
-
-    /// FSM state register.
-    reg state : State on clock
+        it.clk := spi_clk_reg
+    }
 
     /// Serial send buffer (command + address to transmit).
     reg send_buffer : Word[32] on clock
@@ -64,10 +97,10 @@ mod SpiFlash {
     reg data : Word[32] on clock // for DONE state
     data <=
         if half_clock {
-        word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
-    } else {
-        data
-    }
+            word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
+        } else {
+            data
+        }
 
     /// Count of bits sent (0–31).
     reg bits_sent : Word[6] on clock
@@ -85,129 +118,61 @@ mod SpiFlash {
     }
 
     /// SPI clock register (inverted every cycle when active).
-    reg spi_clk_reg : Bit on clock
-    spi.clk := spi_clk_reg
-    // Invert SPI clock every cycle.
-    spi_clk_reg <= !spi_clk_reg
+    reg spi_clk_reg : Bit on clock {
+        // Invert SPI clock every cycle.
+        it <= !it
+    }
 
-    // FSM next-state logic.
-    state <=
+    /// Main FSM state.
+    reg state : State on clock {
         if reset {
-        #Idle
-    } else {
-        if state == #Idle { // IDLE
-            if mem_read_enable {
-                #Send
-            } else {
-                #Idle
+            it <= #Idle
+        } else {
+            match it {
+                case #Idle => {
+                    // Start a SPI read transaction on any Wishbone read request.
+                    if wb.cyc && wb.stb && !wb.we {
+                        it <= #Send
+                    } else {
+                        it <= #Idle
+                    }
+                }
+                case #Send => {
+                    if bits_sent < 31 {
+                        it <= #Send
+                    } else {
+                        it <= #Recv
+                    }
+                }
+                case #Recv => {
+                    if bits_read < 31 {
+                        it <= #Recv
+                    } else {
+                        it <= #Done
+                    }
+                }
+                else => {
+                    it <= #Idle
+                }
             }
-        } else if state == #Send { // SEND
-            if bits_sent < 31 {
-                #Send
-            } else {
-                #Recv
+        }
+    }
+
+    if half_clock {
+        match state {
+            case #Idle => {
+                bits_sent <= 0
+                bits_read <= 0
+                send_buffer <= word(0x03w8, wb.adr[24..0])
             }
-        } else if state == #Recv { // RECV
-            if bits_read < 31 {
-                #Recv
-            } else {
-                #Done
+            case #Send => {
+                send_buffer <= word(send_buffer[31..0], 0w1)
+                bits_sent <= bits_sent + 1
             }
-        } else {
-            #Idle
+            case #Recv => {
+                recv_buffer <= word(0x03w8, wb.adr[24..0])
+                bits_read <= bits_read + 1
+            }
         }
     }
-
-    // Shift out the send buffer (0x03 command + 24-bit address).
-    send_buffer <=
-        if half_clock {
-        if state == #Idle { // IDLE
-            word(0x03w8, mem_addr[24..0])
-        } else if state == #Send {
-            word(send_buffer[31..0], 0w1)
-        } else {
-            0
-        }
-    } else {
-        send_buffer
-    }
-
-    // Shift in the receive buffer.
-    recv_buffer <=
-        if half_clock {
-        if state == #Send { // SEND
-            0
-        } else if state == #Send { // SEND
-            word(recv_buffer[31..0], spi.di)
-
-        } else {
-            0
-        }
-    } else {
-        recv_buffer
-    }
-
-    // Count transmitted bits.
-    bits_sent <=
-        if half_clock {
-        if state == #Idle { // IDLE
-            0
-        } else if state == #Send { // SEND
-            bits_sent + 1
-        } else {
-            0
-        }
-    } else {
-        bits_sent
-    }
-
-    // Count received bits.
-    bits_read <=
-        if half_clock {
-        if state == #Send { // SEND
-            0
-        } else if state == #Send { // SEND
-            bits_read + 1
-
-        } else {
-            0
-        }
-    } else {
-        bits_read
-    }
-
-    // Chip-select: active-low, asserted during Send/Recv.
-    spi.cs :=
-        if reset {
-        true
-    } else if state == #Idle { // IDLE
-        true
-    } else if state == #Done { // DONE
-        true
-    } else {
-        false
-    }
-
-    // Master data output: most-significant bit of send_buffer during Send, idle-high otherwise.
-    spi.do :=
-        if reset {
-        true
-    } else {
-        if state == #Send { // SEND
-            send_buffer[31]
-        } else {
-            true
-        }
-    }
-
-    // Read data output (big-endian byte swap for 32-bit word).
-    mem_read_data :=
-        if state == #Done { // DONE
-        word(data[8..0], data[16..8], data[24..16], data[32..24])
-    } else {
-        0xffffffffw32
-    }
-
-    // Read data valid: high only in the Done state.
-    mem_read_data_valid := state == #Done // DONE
 }
