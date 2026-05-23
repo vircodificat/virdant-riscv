@@ -32,10 +32,18 @@ mod Alu {
         }
     }
 
+    wire adder : Word[32] {
+        it := a + (match op {
+            case #Add => b
+            case #Sub => ~b + 1
+            else => dontcare
+        })
+    }
+
     // Main ALU output: result selected by `op`.
     z := match op {
-        case #Add => a + b
-        case #Sub => a - b
+        case #Add => adder
+        case #Sub => adder
         case #And => a & b
         case #Or  => a | b
         case #Xor => a ^ b
@@ -79,6 +87,8 @@ mod Shifter {
     incoming amount : Word[5]
     /// Shifted result.
     outgoing z : Word[32]
+
+    // TODO; This could be written with let blocks.
 
     /// Stage 1: shift left by 1.
     wire sll_1 : Word[32]

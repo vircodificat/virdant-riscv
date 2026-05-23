@@ -8,19 +8,16 @@ mod IDecode {
     /// The 32-bit instruction word fetched from memory.
     incoming instr : Word[32]
 
-    /// Decoded 7-bit primary opcode (`instr[6:0]`).
-    outgoing wire opcode : opcode::Opcode
-
-    /// Destination register index (`instr[11:7]`).
+    /// Destination register
     outgoing rd : Word[5]
-    /// First source register index (`instr[19:15]`).
+    /// First source register
     outgoing rs1 : Word[5]
-    /// Second source register index (`instr[24:20]`).
+    /// Second source register
     outgoing rs2 : Word[5]
 
-    /// 3-bit function selector (`instr[14:12]`).
+    /// 3-bit function selector
     outgoing funct3 : Word[3]
-    /// 7-bit function selector (`instr[31:25]`).
+    /// 7-bit function selector
     outgoing funct7 : Word[7]
     /// 12-bit function selector for CSR / SYSTEM instructions (`instr[31:20]`).
     outgoing funct12 : Word[12]
@@ -30,36 +27,72 @@ mod IDecode {
     /// Format depends on the opcode (I-type, S-type, B-type, J-type, U-type).
     outgoing imm : Word[32]
 
-    /// Raw opcode bits `instr[6:0]`.
-    wire opcode_bits : Word[7]
-    opcode_bits := instr[7..0]
-    // Map raw opcode bits to the `Opcode` enum.
-    opcode :=
-        if opcode_bits ==  99 { #BRANCH }
-    else if opcode_bits ==  103 { #JALR }
-    else if opcode_bits ==  111 { #JAL }
-    else if opcode_bits ==  19 { #OP_IMM }
-    else if opcode_bits ==  51 { #OP }
-    else if opcode_bits ==  55 { #LUI }
-    else if opcode_bits ==  3 { #LOAD }
-    else if opcode_bits ==  115 { #SYSTEM }
-    else if opcode_bits ==  35 { #STORE }
-    else if opcode_bits ==  23 { #AUIPC }
-    else if opcode_bits ==  15 { #FENCE }
-    else { #SYSTEM }
-
-    // Extract `rd` from `instr[11:7]`.
-    rd := instr[12..7]
-    // Extract `rs1` from `instr[19:15]`.
-    rs1 := instr[20..15]
-    // Extract `rs2` from `instr[24:20]`.
-    rs2 := instr[25..20]
-    // Extract `funct3` from `instr[14:12]`.
-    funct3 := instr[15..12]
-    // Extract `funct7` from `instr[31:25]`.
-    funct7 := instr[32..25]
-    // Extract `funct12` from `instr[31:20]`.
+    rd      := instr[12..7]
+    rs1     := instr[20..15]
+    rs2     := instr[25..20]
+    funct3  := instr[15..12]
+    funct7  := instr[32..25]
     funct12 := instr[32..20]
+
+    wire opcode_bits : Word[7] {
+        it := instr[7..0]
+    }
+
+    /// Decoded 7-bit primary opcode (`instr[6:0]`).
+    outgoing wire opcode : opcode::Opcode {
+        match opcode_bits {
+            case 99  => {
+                it             := #BRANCH
+                illegal_opcode := false
+            }
+            case 103  => {
+                it             := #JALR
+                illegal_opcode := false
+            }
+            case 111  => {
+                it             := #JAL
+                illegal_opcode := false
+            }
+            case 19  => {
+                it             := #OP_IMM
+                illegal_opcode := false
+            }
+            case 51  => {
+                it             := #OP
+                illegal_opcode := false
+            }
+            case 55  => {
+                it             := #LUI
+                illegal_opcode := false
+            }
+            case 3  => {
+                it             := #LOAD
+                illegal_opcode := false
+            }
+            case 115  => {
+                it             := #SYSTEM
+                illegal_opcode := false
+            }
+            case 35  => {
+                it             := #STORE
+                illegal_opcode := false
+            }
+            case 23  => {
+                it             := #AUIPC
+                illegal_opcode := false
+            }
+            case 15  => {
+                it             := #FENCE
+                illegal_opcode := false
+            }
+            else =>  {
+                it             := #SYSTEM
+                illegal_opcode := true
+            }
+        }
+    }
+
+    outgoing wire illegal_opcode : Bit
 
     // Immediate value, computed per RISC-V spec for each instruction format.
     imm := match opcode {
