@@ -150,16 +150,45 @@ mod WbArb21 {
             it.sel    := m1_sel
         }
 
-        master_0.ack    := it.ack && grant_0
-        master_1.ack    := it.ack && grant_1
-        master_0.err    := it.err && grant_0
-        master_1.err    := it.err && grant_1
-        master_0.dat_rd := it.dat_rd
-        master_1.dat_rd := it.dat_rd
+        master_0.ack := it.ack && grant_0
+        master_1.ack := it.ack && grant_1
+        master_0.err := it.err && grant_0
+        master_1.err := it.err && grant_1
     }
 
     /// Current arbiter state (Idle, ServingMaster0, ServingMaster1).
-    reg serving : Serving on clock
+    reg serving : Serving on clock {
+        // Update `serving` state on reset and on transaction completion.
+        if reset {
+            it <= @Idle()
+        } else {
+            match it {
+                case @Idle() => {
+                    if idle_grant_0 {
+                        it <= @ServingMaster0()
+                    } else if idle_grant_1 {
+                        it <= @ServingMaster1()
+                    } else {
+                        it <= @Idle()
+                    }
+                }
+                case @ServingMaster0() => {
+                    if cyc_done {
+                        it <= @Idle()
+                    } else {
+                        it <= @ServingMaster0()
+                    }
+                }
+                case @ServingMaster1() => {
+                    if cyc_done {
+                        it <= @Idle()
+                    } else {
+                        it <= @ServingMaster1()
+                    }
+                }
+            }
+        }
+    }
     /// Round-robin priority (Master0First or Master1First).
     reg priority : Priority on clock
 
@@ -206,22 +235,6 @@ mod WbArb21 {
         it := (slave_0.ack || slave_0.err) && ((grant_0 && !m0_cyc) || (grant_1 && !m1_cyc))
     }
 
-    // Update `serving` state on reset and on transaction completion.
-    serving <= if reset {
-        @Idle()
-    } else {
-        match serving {
-            case @Idle() =>
-                if idle_grant_0 { @ServingMaster0() }
-            else if idle_grant_1 { @ServingMaster1() }
-            else { @Idle() }
-            case @ServingMaster0() =>
-                if cyc_done { @Idle() } else { @ServingMaster0() }
-            case @ServingMaster1() =>
-                if cyc_done { @Idle() } else { @ServingMaster1() }
-        }
-    }
-
     // Update round-robin priority on each completed transaction.
     if reset {
         priority <= @Master0First()
@@ -235,6 +248,21 @@ mod WbArb21 {
                     priority <= @Master0First()
                 }
             }
+        }
+    }
+
+    match serving {
+        case @Idle() => {
+            master_0.dat_rd := 0
+            master_1.dat_rd := 0
+        }
+        case @ServingMaster0() => {
+            master_0.dat_rd := slave_0.dat_rd
+            master_1.dat_rd := 0
+        }
+        case @ServingMaster1() => {
+            master_0.dat_rd := 0
+            master_1.dat_rd := slave_0.dat_rd
         }
     }
 }
@@ -308,38 +336,30 @@ mod WbAddrRouter {
             it.err := (sel_0 && slave_0.err) || (sel_1 && slave_1.err) || (sel_2 && slave_2.err)
         }
 
-        if serving_slave2 { it.dat_rd := slave_2.dat_rd }
-        else if serving_slave1 { it.dat_rd := slave_1.dat_rd }
-        else { it.dat_rd := slave_0.dat_rd }
-    }
-
-    /// Handshake detected: strobe active and the selected slave acknowledged.
-    wire a_handshake : Bit {
-        it := master_0.stb && ((sel_0 && slave_0.ack) || (sel_1 && slave_1.ack) || (sel_2 && slave_2.ack))
-    }
-
-    /// Registered slave-select state (used to mux read-data).
-    reg serving : SelState on clock {
-        if reset {
-            it <= @Slave0()
-        } else if a_handshake {
-            if sel_2 {
-                it <= @Slave2()
-            } else if sel_1 {
-                it <= @Slave1()
-            } else {
-                it <= @Slave0()
+        match serving {
+            case @Slave0() => {
+                it.dat_rd := slave_0.dat_rd
+            }
+            case @Slave1() => {
+                it.dat_rd := slave_1.dat_rd
+            }
+            case @Slave2() => {
+                it.dat_rd := slave_2.dat_rd
             }
         }
     }
 
-    /// Whether we are serving slave 1 (used for read-data mux).
-    wire serving_slave1 : Bit {
-        it := serving == @Slave1()
-    }
-    /// Whether we are serving slave 2 (used for read-data mux).
-    wire serving_slave2 : Bit {
-        it := serving == @Slave2()
+    /// Registered slave-select state (used to mux read-data).
+    wire serving : SelState {
+        if reset {
+            it := @Slave0()
+        } else if sel_2 {
+            it := @Slave2()
+        } else if sel_1 {
+            it := @Slave1()
+        } else {
+            it := @Slave0()
+        }
     }
 }
 
@@ -365,9 +385,9 @@ mod WbAddrMuxBit {
     server socket master_0 of Wishbone
 
     // --- Address decode ---
-    wire sel : Bit { it := master_0.adr[31] }
-    wire sel_0 : Bit { it := !sel }
-    wire sel_1 : Bit { it := sel }
+    wire sel : Bit { it        := master_0.adr[31] }
+    wire sel_0 : Bit { it      := !sel }
+    wire sel_1 : Bit { it      := sel }
     wire decode_err : Bit { it := false }
 
     /// Internal router instance.
@@ -378,9 +398,11 @@ mod WbAddrMuxBit {
         it.sel_1      := sel_1
         it.sel_2      := false
         it.decode_err := decode_err
-        it.master_0  :=: master_0
-        slave_0      :=: it.slave_0
-        slave_1      :=: it.slave_1
+
+        master_0 :=: it.master_0
+        slave_0  :=: it.slave_0
+        slave_1  :=: it.slave_1
+
         it.slave_2.ack    := false
         it.slave_2.err    := false
         it.slave_2.dat_rd := 0w32
@@ -433,9 +455,9 @@ mod WbAddrMuxNybble {
     server socket master_0 of Wishbone
 
     // --- Address decode ---
-    wire sel_0 : Bit { it := master_0.adr[32..28] == 0x2w4 }
-    wire sel_1 : Bit { it := master_0.adr[32..28] == 0x8w4 }
-    wire sel_2 : Bit { it := master_0.adr[32..28] == 0x4w4 }
+    wire sel_0 : Bit { it      := master_0.adr[32..28] == 0x2w4 }
+    wire sel_1 : Bit { it      := master_0.adr[32..28] == 0x8w4 }
+    wire sel_2 : Bit { it      := master_0.adr[32..28] == 0x4w4 }
     wire decode_err : Bit { it := !(sel_0 || sel_1 || sel_2) }
 
     /// Internal router instance.
@@ -446,10 +468,10 @@ mod WbAddrMuxNybble {
         it.sel_1      := sel_1
         it.sel_2      := sel_2
         it.decode_err := decode_err
-        it.master_0  :=: master_0
-        slave_0      :=: it.slave_0
-        slave_1      :=: it.slave_1
-        slave_2      :=: it.slave_2
+        master_0      :=: it.master_0
+        slave_0       :=: it.slave_0
+        slave_1       :=: it.slave_1
+        slave_2       :=: it.slave_2
     }
 }
 

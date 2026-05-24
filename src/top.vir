@@ -50,7 +50,6 @@ export mod Top {
     ///   0x4 → UART (0x4000_0000)
     ///   0x8 → RAM  (0x8000_0000)
     ///
-    /// Unmapped addresses produce an error response.
     mod wb_decoder of wishbone::WbAddrMuxNybble {
         it.master_0 :=: cpu.mem
         it.slave_0  :=: spi_flash.wb

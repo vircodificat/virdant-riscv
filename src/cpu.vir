@@ -26,6 +26,11 @@ mod Cpu {
     client socket mem of wishbone::Wishbone {
         unused it.err
 
+        it.adr    := match stage {
+            case #Fetching => pc
+            case #Execute  => alu.z
+            else           => dontcare
+        }
         it.sel    := control.mem_sel
         it.dat_wr := match idecode.funct3[2..0] {
             case 0b00 => word(rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0])
@@ -71,6 +76,10 @@ mod Cpu {
     ///
     /// Transitions: Reset → Fetching → Execute → Writeback → (Breaked | Fetching).
     /// Stalls when `control.stall` is asserted.
+    ///
+    /// Note: mem.adr is now driven combinatorially in the socket declaration,
+    /// NOT inside this block, to avoid a deadlock where stall gates the
+    /// address, which prevents ack, which keeps stall asserted.
     reg stage : opcode::CpuStage on clock {
         if reset {
             it         <= #Reset
@@ -81,12 +90,10 @@ mod Cpu {
                 }
                 case #Fetching => {
                     it         <= #Execute
-                    mem.adr    := pc
                     instr      <= mem.dat_rd
                 }
                 case #Execute => {
                     it         <= #Writeback
-                    mem.adr    := alu.z
                     mem_buffer <= mem.dat_rd
                 }
                 case #Writeback => {
@@ -97,7 +104,7 @@ mod Cpu {
                     }
                 }
                 case #Breaked => {
-                    mem.adr    := dontcare
+                    // mem.adr driven combinatorially in socket
                 }
             }
         }
