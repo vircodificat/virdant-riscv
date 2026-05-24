@@ -1,11 +1,10 @@
-//! SPI flash controller with Wishbone interface.
-//!
-//! This package provides an SPI master that reads from a SPI NOR flash
-//! using the standard 0x03 (READ) command, and a Spi socket definition.
 import wishbone
 
-/// The SpiFlash module exposes a Wishbone B.4 slave interface.
+/// SPI flash controller.
 ///
+/// This package provides an SPI master that reads from a SPI NOR flash
+/// using the standard 0x03 (READ) command, and a Spi socket definition.
+
 /// SPI flash controller FSM state.
 enum type State width 4 {
     /// Idle: waiting for a read request.
@@ -33,146 +32,150 @@ socket Spi {
     soci di : Bit
 }
 
-/// SPI flash memory reader with Wishbone interface.
-///
-/// Reads 32-bit words from an SPI NOR flash using the 0x03 command.
-/// Provides a standard Wishbone B.4 slave interface (read-only).
-/// Write transactions are terminated with an error response.
-mod SpiFlash {
-    /// Global clock.
+mod WbSpiFlash {
     incoming clock : Clock
-    /// Global reset (active-high).
     incoming reset : Reset
 
-    /// Wishbone slave socket.
     server socket wb of wishbone::Wishbone {
         unused it.sel
         unused it.dat_wr
-
-        // Acknowledge: asserted for one cycle when read data is ready.
-        it.ack := state == #Done && !reset
-
-        // Error: asserted on write transactions (this slave is read-only).
-        it.err := it.cyc && it.stb && it.we && !reset
-
-        // Read data: big-endian byte swap of the accumulated SPI data.
-        it.dat_rd := if state == #Done {
-            word(data[8..0], data[16..8], data[24..16], data[32..24])
-        } else {
-            dontcare
-        }
     }
 
-    /// SPI bus client socket.
+    client socket spi of Spi
+
+    mod spi_flash of SpiFlash {
+        it.spi :=: spi
+        it.clock := clock
+        it.reset := reset
+
+        it.addr := wb.adr[24..0]
+        it.read_enable := wb.cyc && wb.stb
+
+        wb.dat_rd := it.read_data
+        wb.err := wb.we
+        wb.ack := it.read_data_valid
+    }
+}
+
+
+/// SPI flash memory reader.
+///
+/// Reads 32-bit words from an SPI NOR flash using the 0x03 command.
+/// Provides a simple memory-mapped read interface to an attached master.
+mod SpiFlash {
+    incoming clock : Clock
+    incoming reset : Reset
+
     client socket spi of Spi {
-        // Master data output: most-significant bit of send_buffer during Send, idle-high otherwise.
-        it.do := if reset {
-            true
-        } else {
-            match state {
-                case #Send => send_buffer[31]
-                else => true
-            }
-        }
-
-        // Chip-select: active-low, asserted during Send/Recv.
-        it.cs := if reset {
-            true
-        } else {
-            match state {
-                case #Send => false
-                case #Recv => false
-                else => true
-            }
-        }
-
-        it.clk := spi_clk_reg
-    }
-
-    /// Serial send buffer (command + address to transmit).
-    reg send_buffer : Word[32] on clock
-    /// Serial receive buffer (incoming bits from the flash).
-    reg recv_buffer : Word[32] on clock
-    /// Accumulated read data (built up during the Recv state).
-    reg data : Word[32] on clock // for DONE state
-    data <=
-        if half_clock {
-            word(recv_buffer[31..0], 0w1) | word(0w31, spi.di)
-        } else {
-            data
-        }
-
-    /// Count of bits sent (0–31).
-    reg bits_sent : Word[6] on clock
-    /// Count of bits received (0–31).
-    reg bits_read : Word[6] on clock
-
-    /// Half-clock divider. Toggles every cycle to produce SPI clock edges.
-    reg half_clock : Bit on clock
-
-    // Toggle half_clock every cycle.
-    half_clock <= if reset {
-        false
-    } else {
-        !half_clock
-    }
-
-    /// SPI clock register (inverted every cycle when active).
-    reg spi_clk_reg : Bit on clock {
-        // Invert SPI clock every cycle.
-        it <= !it
-    }
-
-    /// Main FSM state.
-    reg state : State on clock {
         if reset {
-            it <= #Idle
+            it.do := true
+            it.cs := true
         } else {
-            match it {
+            match state {
                 case #Idle => {
-                    // Start a SPI read transaction on any Wishbone read request.
-                    if wb.cyc && wb.stb && !wb.we {
-                        it <= #Send
-                    } else {
-                        it <= #Idle
-                    }
+                    it.do := true
+                    it.cs := true
                 }
                 case #Send => {
-                    if bits_sent < 31 {
-                        it <= #Send
-                    } else {
-                        it <= #Recv
-                    }
+                    it.do := buffer[31]
+                    it.cs := true
                 }
                 case #Recv => {
-                    if bits_read < 31 {
-                        it <= #Recv
-                    } else {
-                        it <= #Done
-                    }
+                    it.do := true
+                    it.cs := true
                 }
-                else => {
-                    it <= #Idle
+                case #Done => {
+                    it.do := true
+                    it.cs := true
                 }
             }
         }
     }
+
+    incoming addr : Word[24]
+    incoming read_enable : Bit
+
+    outgoing read_data : Word[32] {
+        it := match state {
+            case #Done => word(buffer[8..0], buffer[16..8], buffer[24..16], buffer[32..24])
+            else => dontcare
+        }
+    }
+    outgoing read_data_valid : Bit {
+        it := state == #Done
+    }
+
+    reg state : State on clock
+
+    reg buffer : Word[32] on clock
+    reg buffer_index : Word[5] on clock
 
     if half_clock {
         match state {
             case #Idle => {
-                bits_sent <= 0
-                bits_read <= 0
-                send_buffer <= word(0x03w8, wb.adr[24..0])
+                buffer <= word(0x03w8, addr[24..0])
+                buffer_index <= 0
             }
             case #Send => {
-                send_buffer <= word(send_buffer[31..0], 0w1)
-                bits_sent <= bits_sent + 1
+                buffer <= word(buffer[31..0], 0w1)
+                buffer_index <= if buffer_index != 0b11111w5 {
+                    buffer_index + 1
+                } else {
+                    0
+                }
             }
             case #Recv => {
-                recv_buffer <= word(0x03w8, wb.adr[24..0])
-                bits_read <= bits_read + 1
+                buffer <= word(buffer[32..1], spi.di)
+                buffer_index <= if buffer_index != 0b11111w5 {
+                    buffer_index + 1
+                } else {
+                    0
+                }
             }
+            else => {
+                buffer <= 0
+            }
+        }
+    }
+
+    reg half_clock : Bit on clock {
+        it <= if reset {
+            false
+        } else {
+            !it
+        }
+    }
+
+    reg spi_clk_reg : Bit on clock {
+        spi.clk := it
+        it <= !it
+    }
+
+    // FSM next-state logic.
+    state <=
+        if reset {
+        #Idle
+    } else {
+        if state == #Idle { // IDLE
+            if read_enable {
+                #Send
+            } else {
+                #Idle
+            }
+        } else if state == #Send { // SEND
+            if buffer_index < 31 {
+                #Send
+            } else {
+                #Recv
+            }
+        } else if state == #Recv { // RECV
+            if buffer_index < 31 {
+                #Recv
+            } else {
+                #Done
+            }
+        } else {
+            #Idle
         }
     }
 }

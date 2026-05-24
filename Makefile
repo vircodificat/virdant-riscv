@@ -13,6 +13,7 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
 		--Mdir build \
 		--top-module Top \
 		--build \
+		-Wno-UNOPTFLAT \
 		--trace-vcd
 	g++ \
 		-Ibuild/ \
@@ -39,9 +40,16 @@ out.vcd: run
 wave: out.vcd $(HEX)
 	gtkwave sim.gtkw
 
+wave-spi: dump.vcd
+	gtkwave dump.vcd spi.gtkw
+
 build_tests:
 	mkdir -p build
 	bash get_riscv_tests.sh
+
+test_spi: build/spi.sv spi_tb.sv
+	iverilog -g2012 -o spi_tb.vvp build/spi.sv spi_tb.sv
+	vvp spi_tb.vvp
 
 scoreboard: build/sim
 	./scoreboard.py

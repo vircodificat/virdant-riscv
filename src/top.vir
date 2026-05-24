@@ -19,14 +19,11 @@ export mod Top {
     /// Global reset input (active-high).
     incoming reset : Reset
 
-    // --- SPI pins (exposed at the top level) ---
-    /// SPI slave data input (MISO).
-    incoming spi_di : Bit
+    client socket spi of spi::Spi
 
-    /// Cycle counter. Increments each clock cycle.
-    reg cycle : Word[32] on clock
-    // Increment cycle counter every cycle.
-    cycle <= if reset { 0w32 } else { cycle + 1w32 }
+    reg cycle : Word[32] on clock {
+        it <= if reset { 0w32 } else { it + 1w32 }
+    }
 
     /// CPU core instance.
     mod cpu of cpu::Cpu {
@@ -47,6 +44,7 @@ export mod Top {
         it.clock    := clock
         it.reset    := reset
         it.master_0 :=: cpu.mem
+        it.slave_0  :=: spi_flash.wb
     }
 
     /// Return code from the CPU (register a0 value at EBREAK).
@@ -61,24 +59,23 @@ export mod Top {
     }
 
     /// SPI flash controller instance.
-    mod spi_ctrl of spi::SpiFlash {
+    mod spi_flash of spi::WbSpiFlash {
         it.clock    := clock
         it.reset    := reset
-        it.wb       :=: wb_decoder.slave_0
-        it.spi.di   := spi_di
+        spi         :=: it.spi
     }
 
     /// SPI chip-select (active-low).
     outgoing spi_cs : Bit {
-        it := spi_ctrl.spi.cs
+        it := spi_flash.spi.cs
     }
     /// SPI serial clock.
     outgoing spi_clk : Bit {
-        it := spi_ctrl.spi.clk
+        it := spi_flash.spi.clk
     }
     /// SPI master data output (MOSI).
     outgoing spi_do : Bit {
-        it := spi_ctrl.spi.do
+        it := spi_flash.spi.do
     }
 
     /// Finish indicator: asserted when the CPU reaches the Breaked state.
