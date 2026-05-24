@@ -52,12 +52,12 @@ build_tests:
 	mkdir -p build
 	bash get_riscv_tests.sh
 
-test_spi: spi_tb.sv build
-	iverilog -g2012 -o build/spi_tb.vvp build/spi.sv spi_tb.sv
+test_spi: tb/spi_tb.sv build
+	iverilog -g2012 -o build/spi_tb.vvp build/spi.sv tb/spi_tb.sv
 	cd build && vvp spi_tb.vvp
 
-test_uart: uart_tb.sv build
-	iverilog -g2012 -o build/uart_tb.vvp build/uart.sv uart_tb.sv
+test_uart: tb/uart_tb.sv build
+	iverilog -g2012 -o build/uart_tb.vvp build/uart.sv tb/uart_tb.sv
 	cd build && vvp uart_tb.vvp
 
 scoreboard: build/sim
