@@ -42,16 +42,23 @@ out.vcd: run
 wave: out.vcd $(HEX)
 	gtkwave sim.gtkw
 
-wave-spi: dump.vcd
-	gtkwave dump.vcd spi.gtkw
+wave-spi: build/dump.vcd
+	gtkwave build/dump.vcd spi.gtkw
+
+wave-uart: build/uart_dump.vcd
+	gtkwave build/uart_dump.vcd
 
 build_tests:
 	mkdir -p build
 	bash get_riscv_tests.sh
 
 test_spi: spi_tb.sv build
-	iverilog -g2012 -o spi_tb.vvp build/spi.sv spi_tb.sv
-	vvp spi_tb.vvp
+	iverilog -g2012 -o build/spi_tb.vvp build/spi.sv spi_tb.sv
+	cd build && vvp spi_tb.vvp
+
+test_uart: uart_tb.sv build
+	iverilog -g2012 -o build/uart_tb.vvp build/uart.sv uart_tb.sv
+	cd build && vvp uart_tb.vvp
 
 scoreboard: build/sim
 	./scoreboard.py
