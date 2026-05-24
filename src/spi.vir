@@ -52,7 +52,7 @@ mod WbSpiFlash {
         it.read_enable := wb.cyc && wb.stb
 
         wb.dat_rd := it.read_data
-        wb.err := wb.we
+        wb.err := wb.cyc && wb.stb && wb.we
         wb.ack := it.read_data_valid
     }
 }
@@ -78,11 +78,11 @@ mod SpiFlash {
                 }
                 case #Send => {
                     it.do := buffer[31]
-                    it.cs := true
+                    it.cs := false
                 }
                 case #Recv => {
                     it.do := true
-                    it.cs := true
+                    it.cs := false
                 }
                 case #Done => {
                     it.do := true
@@ -105,12 +105,39 @@ mod SpiFlash {
         it := state == #Done
     }
 
-    reg state : State on clock
+    reg state : State on clock {
+        if reset {
+            it <= #Idle
+        } else {
+            match it {
+                case #Idle => {
+                    if read_enable {
+                        it <= #Send
+                    } else {
+                        it <= #Idle
+                    }
+                }
+                case #Send => {
+                    if buffer_index == 0b11111w5 && !half_clock {
+                        it <= #Recv
+                    }
+                }
+                case #Recv => {
+                    if buffer_index == 0b11111w5 && !half_clock {
+                        it <= #Done
+                    }
+                }
+                case #Done => {
+                    it <= #Idle
+                }
+            }
+        }
+    }
 
     reg buffer : Word[32] on clock
     reg buffer_index : Word[5] on clock
 
-    if half_clock {
+    if !half_clock {
         match state {
             case #Idle => {
                 buffer <= word(0x03w8, addr[24..0])
@@ -118,15 +145,15 @@ mod SpiFlash {
             }
             case #Send => {
                 buffer <= word(buffer[31..0], 0w1)
-                buffer_index <= if buffer_index != 0b11111w5 {
+                buffer_index <= if buffer_index != 31w5 {
                     buffer_index + 1
                 } else {
                     0
                 }
             }
             case #Recv => {
-                buffer <= word(buffer[32..1], spi.di)
-                buffer_index <= if buffer_index != 0b11111w5 {
+                buffer <= word(buffer[31..0], spi.di)
+                buffer_index <= if buffer_index != 31w5 {
                     buffer_index + 1
                 } else {
                     0
@@ -141,6 +168,8 @@ mod SpiFlash {
     reg half_clock : Bit on clock {
         it <= if reset {
             false
+        } else if state == #Idle {
+            true
         } else {
             !it
         }
@@ -149,33 +178,5 @@ mod SpiFlash {
     reg spi_clk_reg : Bit on clock {
         spi.clk := it
         it <= !it
-    }
-
-    // FSM next-state logic.
-    state <=
-        if reset {
-        #Idle
-    } else {
-        if state == #Idle { // IDLE
-            if read_enable {
-                #Send
-            } else {
-                #Idle
-            }
-        } else if state == #Send { // SEND
-            if buffer_index < 31 {
-                #Send
-            } else {
-                #Recv
-            }
-        } else if state == #Recv { // RECV
-            if buffer_index < 31 {
-                #Recv
-            } else {
-                #Done
-            }
-        } else {
-            #Idle
-        }
     }
 }

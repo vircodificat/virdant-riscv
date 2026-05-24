@@ -4,9 +4,7 @@ VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | 
 VIR_SOURCES := $(wildcard src/*.vir)
 SV_SOURCES := $(wildcard ext/*.sv)
 
-build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
-	vir build
-	cp ext/* build/
+build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES) build/
 	verilator \
 		--sv \
 		--cc build/*.sv \
@@ -28,6 +26,10 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES)
 		-lelf \
 		-o build/sim
 
+build: $(VIR_SOURCES)
+	vir build
+	cp ext/* build/
+
 build/%.hex: %.s
 	./asm2hex.sh $< $@
 
@@ -47,7 +49,7 @@ build_tests:
 	mkdir -p build
 	bash get_riscv_tests.sh
 
-test_spi: build/spi.sv spi_tb.sv
+test_spi: spi_tb.sv build
 	iverilog -g2012 -o spi_tb.vvp build/spi.sv spi_tb.sv
 	vvp spi_tb.vvp
 
