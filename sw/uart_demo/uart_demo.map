@@ -1,0 +1,61 @@
+
+There are no discarded input sections
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+ram              0x80000000         0x00010000         xrw
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD /tmp/ccuolMDz.o
+                0x80000000                        . = 0x80000000
+
+.text           0x80000000       0x50
+ *(.text)
+ .text          0x80000000       0x50 /tmp/ccuolMDz.o
+                0x80000000                _start
+ *(.text.*)
+
+.rela.dyn       0x80000050        0x0
+ .rela.text     0x80000050        0x0 /tmp/ccuolMDz.o
+                0x80000050                        . = ALIGN (0x4)
+
+.rodata
+ *(.rodata)
+ *(.rodata.*)
+                0x80000050                        . = ALIGN (0x4)
+
+.data           0x80000050        0x0
+ *(.data)
+ .data          0x80000050        0x0 /tmp/ccuolMDz.o
+ *(.data.*)
+                0x80000050                        . = ALIGN (0x4)
+
+.bss            0x80000050        0x0
+                0x80000050                        __bss_start = .
+ *(.bss)
+ .bss           0x80000050        0x0 /tmp/ccuolMDz.o
+ *(.bss.*)
+ *(COMMON)
+                0x80000050                        __bss_end = .
+                0x80000050                        . = ALIGN (0x10)
+                0x80001050                        . = (. + 0x1000)
+                0x80001050                        __stack_top = .
+                0x80001050                        _end = .
+OUTPUT(uart_demo.elf elf32-littleriscv)
+
+.comment        0x00000000       0x18
+ .comment       0x00000000       0x18 /tmp/ccuolMDz.o
+                                 0x19 (size before relaxing)
+
+.note.GNU-stack
+                0x00000000        0x0
+ .note.GNU-stack
+                0x00000000        0x0 /tmp/ccuolMDz.o
+
+.riscv.attributes
+                0x00000000       0x1c
+ .riscv.attributes
+                0x00000000       0x1c /tmp/ccuolMDz.o
