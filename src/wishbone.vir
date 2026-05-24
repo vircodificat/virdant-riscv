@@ -74,6 +74,8 @@ union type SelState {
     Slave0()
     /// Selected slave 1 (address bit 31 == 1).
     Slave1()
+    /// Selected slave 2.
+    Slave2()
 }
 
 /// 2-to-1 Wishbone round-robin arbiter.
@@ -260,6 +262,8 @@ mod WbAddrRouter {
     incoming sel_0 : Bit
     /// Select: route transaction to slave 1.
     incoming sel_1 : Bit
+    /// Select: route transaction to slave 2.
+    incoming sel_2 : Bit
     /// Decode error: no slave claims this address.
     incoming decode_err : Bit
 
@@ -267,6 +271,8 @@ mod WbAddrRouter {
     client socket slave_0 of Wishbone
     /// Client socket for slave 1.
     client socket slave_1 of Wishbone
+    /// Client socket for slave 2.
+    client socket slave_2 of Wishbone
 
     /// Server socket for the upstream master.
     ///
@@ -278,6 +284,8 @@ mod WbAddrRouter {
         slave_0.stb := it.stb && sel_0
         slave_1.cyc := it.cyc && sel_1
         slave_1.stb := it.stb && sel_1
+        slave_2.cyc := it.cyc && sel_2
+        slave_2.stb := it.stb && sel_2
 
         slave_0.we     := it.we
         slave_0.adr    := it.adr
@@ -287,22 +295,27 @@ mod WbAddrRouter {
         slave_1.adr    := it.adr
         slave_1.dat_wr := it.dat_wr
         slave_1.sel    := it.sel
+        slave_2.we     := it.we
+        slave_2.adr    := it.adr
+        slave_2.dat_wr := it.dat_wr
+        slave_2.sel    := it.sel
 
         if decode_err {
             it.ack := false
             it.err := it.cyc && it.stb
         } else {
-            it.ack := (sel_0 && slave_0.ack) || (sel_1 && slave_1.ack)
-            it.err := (sel_0 && slave_0.err) || (sel_1 && slave_1.err)
+            it.ack := (sel_0 && slave_0.ack) || (sel_1 && slave_1.ack) || (sel_2 && slave_2.ack)
+            it.err := (sel_0 && slave_0.err) || (sel_1 && slave_1.err) || (sel_2 && slave_2.err)
         }
 
-        if serving_slave1 { it.dat_rd := slave_1.dat_rd }
+        if serving_slave2 { it.dat_rd := slave_2.dat_rd }
+        else if serving_slave1 { it.dat_rd := slave_1.dat_rd }
         else { it.dat_rd := slave_0.dat_rd }
     }
 
     /// Handshake detected: strobe active and the selected slave acknowledged.
     wire a_handshake : Bit {
-        it := master_0.stb && ((sel_0 && slave_0.ack) || (sel_1 && slave_1.ack))
+        it := master_0.stb && ((sel_0 && slave_0.ack) || (sel_1 && slave_1.ack) || (sel_2 && slave_2.ack))
     }
 
     /// Registered slave-select state (used to mux read-data).
@@ -310,7 +323,9 @@ mod WbAddrRouter {
         if reset {
             it <= @Slave0()
         } else if a_handshake {
-            if sel_1 {
+            if sel_2 {
+                it <= @Slave2()
+            } else if sel_1 {
                 it <= @Slave1()
             } else {
                 it <= @Slave0()
@@ -321,6 +336,10 @@ mod WbAddrRouter {
     /// Whether we are serving slave 1 (used for read-data mux).
     wire serving_slave1 : Bit {
         it := serving == @Slave1()
+    }
+    /// Whether we are serving slave 2 (used for read-data mux).
+    wire serving_slave2 : Bit {
+        it := serving == @Slave2()
     }
 }
 
@@ -357,10 +376,14 @@ mod WbAddrMuxBit {
         it.reset      := reset
         it.sel_0      := sel_0
         it.sel_1      := sel_1
+        it.sel_2      := false
         it.decode_err := decode_err
         it.master_0  :=: master_0
         slave_0      :=: it.slave_0
         slave_1      :=: it.slave_1
+        it.slave_2.ack    := false
+        it.slave_2.err    := false
+        it.slave_2.dat_rd := 0w32
     }
 }
 
@@ -375,7 +398,7 @@ mod WbAddrMuxBit {
 //
 // Memory map (current):
 //   0x2000_0000 – 0x2FFF_FFFF    SPI  (nybble 0x2)
-//   0x4000_0000 – 0x4FFF_FFFF    ---  (future device, nybble 0x4)
+//   0x4000_0000 – 0x4FFF_FFFF    UART (nybble 0x4)
 //   0x8000_0000 – 0x8FFF_FFFF    RAM  (nybble 0x8)
 //
 // Accesses to unmapped regions return an error.
@@ -386,13 +409,15 @@ mod WbAddrMuxBit {
 /// by comparing the top address nybble (bits [31:28]) against a per-slot
 /// base.  Unmapped addresses produce an error response.
 ///
-/// A thin wrapper around WbAddrRouter that computes sel_0/sel_1/decode_err
+/// A thin wrapper around WbAddrRouter that computes sel_0/sel_1/sel_2/decode_err
 /// from the top address nybble.
 ///
 /// Adding a new slave slot:
 ///   1. Add a `client socket slave_N of Wishbone`
 ///   2. Add a `wire sel_N : Bit { it := master_0.adr[32..28] == 0xNw4 }`
-///   3. Extend the routing and response logic inside master_0
+///   3. Add `sel_N` to the decode_err expression
+///   4. Wire the new slave and sel in the router instance
+///   5. Extend WbAddrRouter to support the additional slave
 mod WbAddrMuxNybble {
     /// Global clock.
     incoming clock : Clock
@@ -402,11 +427,7 @@ mod WbAddrMuxNybble {
     /// Client sockets for slave devices.
     client socket slave_0 of Wishbone   // nybble 0x2  (SPI at 0x2000_0000)
     client socket slave_1 of Wishbone   // nybble 0x8  (RAM at 0x8000_0000)
-    //
-    // To add a new device at, say, 0x4000_0000:
-    //   1. Add `client socket slave_2 of Wishbone`
-    //   2. Add `wire sel_2 : Bit { it := master_0.adr[32..28] == 0x4w4 }`
-    //   3. Extend the routing and response logic inside master_0
+    client socket slave_2 of Wishbone   // nybble 0x4  (UART at 0x4000_0000)
 
     /// Server socket for the upstream master (forwarded to WbAddrRouter).
     server socket master_0 of Wishbone
@@ -414,7 +435,8 @@ mod WbAddrMuxNybble {
     // --- Address decode ---
     wire sel_0 : Bit { it := master_0.adr[32..28] == 0x2w4 }
     wire sel_1 : Bit { it := master_0.adr[32..28] == 0x8w4 }
-    wire decode_err : Bit { it := !(sel_0 || sel_1) }
+    wire sel_2 : Bit { it := master_0.adr[32..28] == 0x4w4 }
+    wire decode_err : Bit { it := !(sel_0 || sel_1 || sel_2) }
 
     /// Internal router instance.
     mod router of WbAddrRouter {
@@ -422,10 +444,12 @@ mod WbAddrMuxNybble {
         it.reset      := reset
         it.sel_0      := sel_0
         it.sel_1      := sel_1
+        it.sel_2      := sel_2
         it.decode_err := decode_err
         it.master_0  :=: master_0
         slave_0      :=: it.slave_0
         slave_1      :=: it.slave_1
+        slave_2      :=: it.slave_2
     }
 }
 

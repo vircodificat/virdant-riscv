@@ -1,50 +1,61 @@
 //! Top-level SoC wrapper.
 //!
-//! Instantiates the CPU core, a Wishbone-attached RAM, and an SPI
+//! Instantiates the CPU core, a Wishbone-attached RAM, a UART, and an SPI
 //! flash controller, connected via a Wishbone address decoder with the
 //! following memory map:
 //!
 //!   0x2000_0000  SPI
+//!   0x4000_0000  UART
 //!   0x8000_0000  RAM
 
 import cpu
 import mem
 import spi
+import uart
 import wishbone
 
 /// Top module: the outermost entity of the design.
 export mod Top {
     /// Global clock input.
-    incoming clock : Clock
+    incoming clock : Clock {
+        cpu.clock := it
+        wb_decoder.clock := it
+        mem.clock := it
+        uart_dev.clock := it
+        spi_flash.clock := it
+    }
     /// Global reset input (active-high).
-    incoming reset : Reset
+    incoming reset : Reset {
+        cpu.reset := it
+        wb_decoder.reset := it
+        uart_dev.reset := it
+        spi_flash.reset := it
+    }
 
     client socket spi of spi::Spi
+    client socket uart of uart::Uart
 
     reg cycle : Word[32] on clock {
         it <= if reset { 0w32 } else { it + 1w32 }
     }
 
     /// CPU core instance.
-    mod cpu of cpu::Cpu {
-        it.clock := clock
-        it.reset := reset
-    }
+    mod cpu of cpu::Cpu
 
     /// Wishbone address decoder.
     ///
     /// Routes transactions by comparing the top address nybble against
     /// each slave's base:
     ///   0x2 → SPI  (0x2000_0000)
+    ///   0x4 → UART (0x4000_0000)
     ///   0x8 → RAM  (0x8000_0000)
     ///
-    /// Unmapped addresses produce an error response.  To add a new
-    /// device at 0x4000_0000, uncomment slave_2 in WbAddrMuxNybble.
+    /// Unmapped addresses produce an error response.
     mod wb_decoder of wishbone::WbAddrMuxNybble {
-        it.clock    := clock
-        it.reset    := reset
         it.master_0 :=: cpu.mem
         it.slave_0  :=: spi_flash.wb
+        it.slave_1  :=: mem.wb
+        it.slave_2  :=: uart_dev.wb
     }
 
     /// Return code from the CPU (register a0 value at EBREAK).
@@ -53,29 +64,16 @@ export mod Top {
     }
 
     /// RAM instance (Wishbone-attached).
-    mod mem of mem::WbMem {
-        it.clock := clock
-        it.wb    :=: wb_decoder.slave_1
+    mod mem of mem::WbMem
+
+    /// UART instance (Wishbone-attached).
+    mod uart_dev of uart::WbUart {
+        uart     :=: it.uart
     }
 
     /// SPI flash controller instance.
     mod spi_flash of spi::WbSpiFlash {
-        it.clock    := clock
-        it.reset    := reset
         spi         :=: it.spi
-    }
-
-    /// SPI chip-select (active-low).
-    outgoing spi_cs : Bit {
-        it := spi_flash.spi.cs
-    }
-    /// SPI serial clock.
-    outgoing spi_clk : Bit {
-        it := spi_flash.spi.clk
-    }
-    /// SPI master data output (MOSI).
-    outgoing spi_do : Bit {
-        it := spi_flash.spi.do
     }
 
     /// Finish indicator: asserted when the CPU reaches the Breaked state.

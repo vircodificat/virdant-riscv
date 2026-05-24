@@ -26,7 +26,9 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES) build/
 		-lelf \
 		-o build/sim
 
-build: $(VIR_SOURCES)
+build: build/
+
+build/: $(VIR_SOURCES)
 	vir build
 	cp ext/* build/
 
@@ -59,6 +61,10 @@ test_spi: tb/spi_tb.sv build
 test_uart: tb/uart_tb.sv build
 	iverilog -g2012 -o build/uart_tb.vvp build/uart.sv tb/uart_tb.sv
 	cd build && vvp uart_tb.vvp
+
+test_wbuart: tb/wbuart_tb.sv build
+	iverilog -g2012 -o build/wbuart_tb.vvp build/uart.sv tb/wbuart_tb.sv
+	cd build && vvp wbuart_tb.vvp
 
 scoreboard: build/sim
 	./scoreboard.py
