@@ -28,6 +28,7 @@
 #define LSR_TEMT (1u << 5)  // Transmitter Empty
 
 // Forward declarations.
+unsigned char getc();
 void putc(unsigned char c);
 void puts(unsigned char *dat);
 
@@ -47,18 +48,17 @@ __attribute__((section(".text.start"))) void _start(void) {
 
     // ── Echo loop ──────────────────────────────────────────────────
     while (1) {
-        // 1. Wait until a character arrives (Data Ready flag).
-        while (!(UART_BASE[REG_LSR] & LSR_DR)) ;
-
-        // 2. Read the received byte from RBR.
-        unsigned char c = (unsigned char)(UART_BASE[REG_RBR] & 0xff);
-
-        // 3. Wait until the transmitter is ready to accept a new byte.
-        while (!(UART_BASE[REG_LSR] & LSR_TEMT)) ;
-
-        // 4. Write the byte back to THR — the hardware serialises it.
-        UART_BASE[REG_THR] = c;
+        unsigned char c = getc();
+        putc(c);
     }
+}
+
+unsigned char getc(void) {
+    // 1. Wait until a character arrives (Data Ready flag).
+    while (!(UART_BASE[REG_LSR] & LSR_DR)) ;
+
+    // 2. Read the received byte from RBR.
+    return (unsigned char)(UART_BASE[REG_RBR] & 0xff);
 }
 
 /// Write a single character to the UART, busy-waiting for the transmitter

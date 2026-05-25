@@ -11,6 +11,20 @@
 #include <unistd.h>
 #include <cerrno>
 #include <sys/select.h>
+#include <termios.h>
+#include <signal.h>
+
+// Saved terminal attributes, accessed by the SIGINT handler.
+static struct termios saved_term;
+static bool term_saved_global = false;
+
+/// Signal handler for SIGINT (Ctrl+C).  Restores the terminal to its
+/// original settings, then exits immediately (async-signal-safe).
+extern "C" void sigint_handler(int /*sig*/) {
+    if (term_saved_global)
+        tcsetattr(STDIN_FILENO, TCSANOW, &saved_term);
+    _exit(0);
+}
 
 // Include the internal headers for direct memory access
 #include "VTop_Top.h"
@@ -294,6 +308,9 @@ int main(int argc, char** argv) {
         }
     }
 
+    // Saved terminal attributes; raw mode is applied later, after diagnostics.
+    // The globals term_saved_global / saved_term are shared with the SIGINT
+    // handler so Ctrl+C restores the terminal before exiting.
     if (enable_uart) {
         // Set stdin to non-blocking mode so the simulation can poll for input
         // without blocking on every tick.
@@ -367,6 +384,30 @@ int main(int argc, char** argv) {
         cerr << dec;
     }
 
+    // ── Terminal raw mode ─────────────────────────────────────────────
+    // Deferred until after diagnostics so all startup output (ELF loading,
+    // hexdump, etc.) is reliably visible before the terminal switches to
+    // character-by-character mode.
+    // ── Terminal raw mode & Ctrl+C ─────────────────────────────────
+    if (enable_uart) {
+        if (tcgetattr(STDIN_FILENO, &saved_term) == 0) {
+            term_saved_global = true;
+            struct termios raw = saved_term;
+            cfmakeraw(&raw);
+            // Re-enable output processing so \n still maps to \r\n.
+            raw.c_oflag |= OPOST | ONLCR;
+            // Re-enable ICRNL so Enter sends \n instead of raw \r.
+            raw.c_iflag |= ICRNL;
+            // Re-enable ISIG so Ctrl+C generates SIGINT.
+            raw.c_lflag |= ISIG;
+            tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+        }
+
+        // Register the SIGINT handler unconditionally so Ctrl+C works even
+        // when tcgetattr fails (e.g. stdin is not a TTY in a pipeline).
+        signal(SIGINT, sigint_handler);
+    }
+
     // UART emulation state (used only when enable_uart is true)
     // Tick interval for checking stdin (every ~10000 ticks ~= 240us at 24ns/cycle)
     uint64_t uart_rx_check_interval = 10000;
@@ -411,6 +452,11 @@ int main(int argc, char** argv) {
         if (top->fin) {
             break;
         }
+    }
+
+    // Restore terminal to its original settings before exiting.
+    if (term_saved_global) {
+        tcsetattr(STDIN_FILENO, TCSANOW, &saved_term);
     }
 
     cout << "Return code: " << top->return_code << endl;
