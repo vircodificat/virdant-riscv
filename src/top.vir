@@ -16,18 +16,14 @@ import wishbone
 
 /// Top module: the outermost entity of the design.
 export mod Top {
-    /// Global clock input.
     incoming clock : Clock {
         cpu.clock := it
-        wb_decoder.clock := it
         mem.clock := it
         uart_dev.clock := it
         spi_flash.clock := it
     }
-    /// Global reset input (active-high).
     incoming reset : Reset {
         cpu.reset := it
-        wb_decoder.reset := it
         uart_dev.reset := it
         spi_flash.reset := it
     }
@@ -44,17 +40,18 @@ export mod Top {
 
     /// Wishbone address decoder.
     ///
-    /// Routes transactions by comparing the top address nybble against
+    /// Routes transactions by comparing the top 3 address bits against
     /// each slave's base:
     ///   0x2 → SPI  (0x2000_0000)
     ///   0x4 → UART (0x4000_0000)
     ///   0x8 → RAM  (0x8000_0000)
     ///
-    mod wb_decoder of wishbone::WbAddrMuxNybble {
-        it.master_0 :=: cpu.mem
-        it.slave_0  :=: spi_flash.wb
-        it.slave_1  :=: mem.wb
-        it.slave_2  :=: uart_dev.wb
+    mod mux13 of wishbone::WbMux13 {
+        it.client_0 :=: cpu.mem
+
+        it.server_0 :=: spi_flash.wb
+        it.server_1 :=: uart_dev.wb
+        it.server_2 :=: mem.wb
     }
 
     /// Return code from the CPU (register a0 value at EBREAK).
