@@ -304,6 +304,7 @@ int main(int argc, char** argv) {
     top->clock = 0;
     top->eval();
     if (tfp) tfp->dump(main_time);
+    tfp->flush();
 
     // Verify memory pointers by checking after first eval
     cerr << "[INIT] mem0=" << hex << top->Top->mem->mem->mem[0]
@@ -322,6 +323,9 @@ int main(int argc, char** argv) {
 //    for (int i = 0; i < max_cycles; i++) {
     for (uint64_t cycle = 0; ; cycle++) {
         tick(top, tfp, cycle);
+        if (cycle % 100 == 0) {
+            tfp->flush();
+        }
 
         if (enable_uart) {
             // ────────────────────────────────────────────────────────────

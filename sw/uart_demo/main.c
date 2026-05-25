@@ -30,6 +30,15 @@
 // Linker-provided stack top.
 extern unsigned int __stack_top;
 
+void puts(unsigned char *dat) {
+    unsigned char b = *dat;
+    while (b) {
+        dat++;
+        *UART_BASE = b;
+        b = *dat;
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // _start — entry point, called directly by the CPU reset vector.
 //
@@ -43,6 +52,10 @@ void _start(void) {
     // Clear BSS (uninitialised data).
     extern unsigned int __bss_start, __bss_end;
     for (unsigned int *b = &__bss_start; b < &__bss_end; *b++ = 0) ;
+
+    while (1) {
+        puts("Hello\n");
+    }
 
     // ── Echo loop ──────────────────────────────────────────────────
     while (1) {

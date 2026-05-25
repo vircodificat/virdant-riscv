@@ -9,53 +9,56 @@ ram              0x80000000         0x00010000         xrw
 
 Linker script and memory map
 
-LOAD /tmp/ccuolMDz.o
+LOAD /tmp/ccx0LldL.o
                 0x80000000                        . = 0x80000000
 
-.text           0x80000000       0x50
+.text           0x80000000       0x58
  *(.text)
- .text          0x80000000       0x50 /tmp/ccuolMDz.o
-                0x80000000                _start
+ .text          0x80000000       0x58 /tmp/ccx0LldL.o
+                0x80000000                puts
+                0x80000020                _start
  *(.text.*)
+                0x80000058                        . = ALIGN (0x4)
 
-.rela.dyn       0x80000050        0x0
- .rela.text     0x80000050        0x0 /tmp/ccuolMDz.o
-                0x80000050                        . = ALIGN (0x4)
-
-.rodata
+.rodata         0x80000058        0x7
  *(.rodata)
  *(.rodata.*)
-                0x80000050                        . = ALIGN (0x4)
+ .rodata.str1.4
+                0x80000058        0x7 /tmp/ccx0LldL.o
 
-.data           0x80000050        0x0
+.rela.dyn       0x80000060        0x0
+ .rela.text     0x80000060        0x0 /tmp/ccx0LldL.o
+                0x80000060                        . = ALIGN (0x4)
+
+.data           0x8000005f        0x0
  *(.data)
- .data          0x80000050        0x0 /tmp/ccuolMDz.o
+ .data          0x8000005f        0x0 /tmp/ccx0LldL.o
  *(.data.*)
-                0x80000050                        . = ALIGN (0x4)
+                0x80000060                        . = ALIGN (0x4)
 
-.bss            0x80000050        0x0
-                0x80000050                        __bss_start = .
+.bss            0x8000005f        0x0
+                0x8000005f                        __bss_start = .
  *(.bss)
- .bss           0x80000050        0x0 /tmp/ccuolMDz.o
+ .bss           0x8000005f        0x0 /tmp/ccx0LldL.o
  *(.bss.*)
  *(COMMON)
-                0x80000050                        __bss_end = .
-                0x80000050                        . = ALIGN (0x10)
-                0x80001050                        . = (. + 0x1000)
-                0x80001050                        __stack_top = .
-                0x80001050                        _end = .
+                0x8000005f                        __bss_end = .
+                0x80000060                        . = ALIGN (0x10)
+                0x80001060                        . = (. + 0x1000)
+                0x80001060                        __stack_top = .
+                0x80001060                        _end = .
 OUTPUT(uart_demo.elf elf32-littleriscv)
 
 .comment        0x00000000       0x18
- .comment       0x00000000       0x18 /tmp/ccuolMDz.o
+ .comment       0x00000000       0x18 /tmp/ccx0LldL.o
                                  0x19 (size before relaxing)
 
 .note.GNU-stack
                 0x00000000        0x0
  .note.GNU-stack
-                0x00000000        0x0 /tmp/ccuolMDz.o
+                0x00000000        0x0 /tmp/ccx0LldL.o
 
 .riscv.attributes
                 0x00000000       0x1c
  .riscv.attributes
-                0x00000000       0x1c /tmp/ccuolMDz.o
+                0x00000000       0x1c /tmp/ccx0LldL.o
