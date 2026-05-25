@@ -27,27 +27,19 @@
 #define LSR_DR   (1u << 0)  // Data Ready
 #define LSR_TEMT (1u << 5)  // Transmitter Empty
 
-// Linker-provided stack top.
-extern unsigned int __stack_top;
-
-void puts(unsigned char *dat) {
-    unsigned char b = *dat;
-    while (b) {
-        dat++;
-        *UART_BASE = b;
-        b = *dat;
-    }
-}
+// Forward declarations.
+void putc(unsigned char c);
+void puts(unsigned char *dat);
 
 // ─────────────────────────────────────────────────────────────────────
 // _start — entry point, called directly by the CPU reset vector.
 //
-// Sets up the stack pointer, clears BSS, then enters the echo loop.
+// Placed first so it lands at 0x80000000, matching the CPU reset vector.
+// Sets up the stack pointer, clears BSS, then echoes received characters.
 // ─────────────────────────────────────────────────────────────────────
-void _start(void) {
+__attribute__((section(".text.start"))) void _start(void) {
     // Set the stack pointer before any C code runs.
-    register unsigned int *sp asm("sp") = &__stack_top;
-    (void)sp;
+    __asm__ volatile("la sp, __stack_top" : : : "sp");
 
     // Clear BSS (uninitialised data).
     extern unsigned int __bss_start, __bss_end;
@@ -70,5 +62,19 @@ void _start(void) {
 
         // 4. Write the byte back to THR — the hardware serialises it.
         UART_BASE[REG_THR] = c;
+    }
+}
+
+/// Write a single character to the UART, busy-waiting for the transmitter
+/// to be ready (TEMT = Transmitter Empty).
+void putc(unsigned char c) {
+    while (!(UART_BASE[REG_LSR] & LSR_TEMT)) ;
+    UART_BASE[REG_THR] = c;
+}
+
+void puts(unsigned char *dat) {
+    while (*dat) {
+        putc(*dat);
+        dat++;
     }
 }

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cstring>
 #include <fcntl.h>
@@ -16,6 +17,7 @@
 #include "VTop_cpu__03a__03aCpu.h"
 #include "VTop_mem__03a__03aWbMem.h"
 #include "VTop_mem__03a__03aMem.h"
+#include "VTop_rf__03a__03aRf.h"
 
 // ELF parsing
 #include <libelf.h>
@@ -31,7 +33,7 @@ double sc_time_stamp() {
     return main_time;
 }
 
-void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull) {
+void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull, bool check_uart = false) {
     // Trace the Fetching-stage state before the posedge
     bool do_trace = (cycle < 4);
     if (do_trace) {
@@ -53,6 +55,17 @@ void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull) {
              << " rd=" << r << " do=0x" << hex << d << dec
              << " instr=0x" << hex << i << dec
              << endl;
+    }
+
+    // UART TX detection: check BEFORE the posedge eval
+    // while the Execute-stage Wishbone signals are still live.
+    if (check_uart) {
+        bool uart_stb = top->Top->__PVT__mux13__02eserver_1__02ecyc;
+        if (uart_stb && top->Top->__PVT__uart_dev__DOT__sel_thr) {
+            uint8_t byte = top->Top->cpu->rf->__PVT__rs2_out & 0xFF;
+            ssize_t written = write(STDOUT_FILENO, &byte, 1);
+            (void)written;
+        }
     }
 
     top->clock = 1;
@@ -314,6 +327,33 @@ int main(int argc, char** argv) {
 
     reset(top, tfp);
 
+    // Hexdump first 32 bytes of memory
+    {
+        cerr << "[HEXDUMP] First 32 bytes of memory:" << endl;
+        auto& mem_ref = top->Top->mem->mem->mem;
+        const int bytes_per_line = 16;
+        for (int off = 0; off < 32; off += bytes_per_line) {
+            cerr << "  0x" << hex << (0x80000000 + off) << ":  ";
+            // Hex bytes
+            for (int i = 0; i < bytes_per_line; i++) {
+                uint32_t word = mem_ref[(off + i) / 4];
+                uint8_t byte = (word >> ((off + i) % 4 * 8)) & 0xFF;
+                cerr << hex << setw(2) << setfill('0') << (int)byte << setw(0);
+                if (i == bytes_per_line / 2 - 1) cerr << "  ";
+                else cerr << " ";
+            }
+            cerr << "|";
+            // ASCII representation
+            for (int i = 0; i < bytes_per_line; i++) {
+                uint32_t word = mem_ref[(off + i) / 4];
+                uint8_t byte = (word >> ((off + i) % 4 * 8)) & 0xFF;
+                cerr << (byte >= 32 && byte < 127 ? (char)byte : '.');
+            }
+            cerr << "|" << dec << endl;
+        }
+        cerr << dec;
+    }
+
     // UART emulation state (used only when enable_uart is true)
     // Tick interval for checking stdin (every ~10000 ticks ~= 240us at 24ns/cycle)
     uint64_t uart_rx_check_interval = 10000;
@@ -322,27 +362,12 @@ int main(int argc, char** argv) {
 //    int max_cycles = 10000;
 //    for (int i = 0; i < max_cycles; i++) {
     for (uint64_t cycle = 0; ; cycle++) {
-        tick(top, tfp, cycle);
+        tick(top, tfp, cycle, enable_uart);
         if (cycle % 100 == 0) {
             tfp->flush();
         }
 
         if (enable_uart) {
-            // ────────────────────────────────────────────────────────────
-            // UART TX: detect THR write and output byte to stdout
-            // ────────────────────────────────────────────────────────────
-            // sel_thr is the address-decode signal; it must be qualified with
-            // the actual Wishbone strobe (wb_decoder.slave_2.stb) to avoid
-            // false triggers when the CPU accesses RAM at an address whose
-            // low bits happen to match the THR register decode.
-            bool uart_stb = top->Top->__PVT__wb_decoder__02eslave_2__02ecyc;
-            if (uart_stb && top->Top->__PVT__uart_dev__DOT__sel_thr) {
-                uint8_t byte = top->Top->__PVT__uart_dev__DOT__sender__DOT__shift;
-                ssize_t written = write(STDOUT_FILENO, &byte, 1);
-                (void)written;
-                fsync(STDOUT_FILENO);
-            }
-
             // ────────────────────────────────────────────────────────────
             // UART RX: periodically check stdin and inject bytes
             // ────────────────────────────────────────────────────────────
