@@ -57,21 +57,30 @@ void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull, bool check_uart
              << endl;
     }
 
-    // UART TX detection: check BEFORE the posedge eval
-    // while the Execute-stage Wishbone signals are still live.
+    // Sample UART sender data_valid BEFORE the posedge.
+    // After the posedge a rising edge (0→1) means a byte was
+    // just written to the THR; read the data from rs2_out
+    // which is what drives the Wishbone write data bus.
+    bool dv_before = false;
     if (check_uart) {
-        bool uart_stb = top->Top->__PVT__mux13__02eserver_1__02ecyc;
-        if (uart_stb && top->Top->__PVT__uart_dev__DOT__sel_thr) {
-            uint8_t byte = top->Top->cpu->rf->__PVT__rs2_out & 0xFF;
-            ssize_t written = write(STDOUT_FILENO, &byte, 1);
-            (void)written;
-        }
+        dv_before = top->Top->__PVT__uart_dev__DOT__sender__02edata_valid;
     }
 
     top->clock = 1;
     top->eval();
     main_time += half_clock_period_ps;
     if (tfp) tfp->dump(main_time);
+
+    // Check AFTER posedge: on the rising edge of data_valid
+    // a byte was just written to the UART THR.
+    if (check_uart) {
+        bool dv_after = top->Top->__PVT__uart_dev__DOT__sender__02edata_valid;
+        if (dv_after && !dv_before) {
+            uint8_t byte = top->Top->cpu->rf->__PVT__rs2_out & 0xFF;
+            ssize_t written = write(STDOUT_FILENO, &byte, 1);
+            (void)written;
+        }
+    }
 
     // Trace after the posedge
     if (do_trace) {
@@ -299,6 +308,10 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
     VTop* top = new VTop;
+
+    // Hold uart.rx high (idle) from the start so the UART receiver
+    // does not falsely detect a start bit from the floating input.
+    top->uart__02erx = 1;
 
     // Load ELF file if provided
     if (!elf_file.empty()) {

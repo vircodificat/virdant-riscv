@@ -45,10 +45,6 @@ __attribute__((section(".text.start"))) void _start(void) {
     extern unsigned int __bss_start, __bss_end;
     for (unsigned int *b = &__bss_start; b < &__bss_end; *b++ = 0) ;
 
-    while (1) {
-        puts("Hello\n");
-    }
-
     // ── Echo loop ──────────────────────────────────────────────────
     while (1) {
         // 1. Wait until a character arrives (Data Ready flag).
