@@ -1,6 +1,4 @@
-//! This is the CPU core tile
-//!
-//! This needs to be integrated into a SoC subsystem
+//! This is the CPU core
 
 import rf
 import alu
@@ -10,14 +8,11 @@ import wishbone
 
 /// A RISC-V CPU core
 ///
-/// This implements RV32I and passes all rv32iu tests in riscv-tests.
+/// 3-stage, non-pipelined RV32I processor
 mod Cpu {
-    /// Global clock input.
     incoming clock : Clock
-    /// Global reset input (active-high).
     incoming reset : Reset
 
-    /// Control unit sub-module.
     mod control of control::Control {
         it.stage := stage
     }
