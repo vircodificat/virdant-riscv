@@ -32,6 +32,11 @@ unsigned char getc();
 void putc(unsigned char c);
 void puts(unsigned char *dat);
 
+char to_upper_ascii(char c);
+char to_lower_ascii(char c);
+
+void main(void);
+
 // ─────────────────────────────────────────────────────────────────────
 // _start — entry point, called directly by the CPU reset vector.
 //
@@ -40,12 +45,16 @@ void puts(unsigned char *dat);
 // ─────────────────────────────────────────────────────────────────────
 __attribute__((section(".text.start"))) void _start(void) {
     // Set the stack pointer before any C code runs.
-    __asm__ volatile("la sp, __stack_top" : : : "sp");
+    register long sp_val asm("sp");
+    __asm__ volatile("la %0, __stack_top" : "=r"(sp_val) : : "memory");
 
     // Clear BSS (uninitialised data).
     extern unsigned int __bss_start, __bss_end;
     for (unsigned int *b = &__bss_start; b < &__bss_end; *b++ = 0) ;
+    main();
+}
 
+void main(void) {
     // ── Echo loop ──────────────────────────────────────────────────
     while (1) {
         unsigned char c = getc();
@@ -73,4 +82,16 @@ void puts(unsigned char *dat) {
         putc(*dat);
         dat++;
     }
+}
+
+char to_upper_ascii(char c) {
+    if (c >= 'a' && c <= 'z')
+        return c - ('a' - 'A');
+    return c;
+}
+
+char to_lower_ascii(char c) {
+    if (c >= 'A' && c <= 'Z')
+        return c + ('a' - 'A');
+    return c;
 }
