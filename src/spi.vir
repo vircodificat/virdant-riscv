@@ -1,34 +1,34 @@
 import wishbone
 
-/// SPI flash controller.
-///
-/// This package provides an SPI master that reads from a SPI NOR flash
-/// using the standard 0x03 (READ) command, and a Spi socket definition.
+//> SPI flash controller.
+//>
+//> This package provides an SPI master that reads from a SPI NOR flash
+//> using the standard 0x03 (READ) command, and a Spi socket definition.
 
-/// SPI flash controller FSM state.
+//> SPI flash controller FSM state.
 enum type State width 4 {
-    /// Idle: waiting for a read request.
+    //> Idle: waiting for a read request.
     Idle = 1
-    /// Send: transmitting the command and address to the flash.
+    //> Send: transmitting the command and address to the flash.
     Send = 2
-    /// Recv: receiving data from the flash.
+    //> Recv: receiving data from the flash.
     Recv = 4
-    /// Done: data available for the requesting master.
+    //> Done: data available for the requesting master.
     Done = 8
 }
 
-/// SPI bus socket.
-///
-/// Signals are from the master's perspective: cs (chip-select, active-low),
-/// clk (serial clock), do (master-out, slave-in), di (master-in, slave-out).
+//> SPI bus socket.
+//>
+//> Signals are from the master's perspective: cs (chip-select, active-low),
+//> clk (serial clock), do (master-out, slave-in), di (master-in, slave-out).
 socket Spi {
-    /// Chip-select (active-low).
+    //> Chip-select (active-low).
     cosi cs : Bit
-    /// Serial clock.
+    //> Serial clock.
     cosi clk : Bit
-    /// Master data output (MOSI).
+    //> Master data output (MOSI).
     cosi do : Bit
-    /// Slave data input (MISO).
+    //> Slave data input (MISO).
     soci di : Bit
 }
 
@@ -58,10 +58,10 @@ mod WbSpiFlash {
 }
 
 
-/// SPI flash memory reader.
-///
-/// Reads 32-bit words from an SPI NOR flash using the 0x03 command.
-/// Provides a simple memory-mapped read interface to an attached master.
+//> SPI flash memory reader.
+//>
+//> Reads 32-bit words from an SPI NOR flash using the 0x03 command.
+//> Provides a simple memory-mapped read interface to an attached master.
 mod SpiFlash {
     incoming clock : Clock
     incoming reset : Reset

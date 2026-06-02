@@ -1,48 +1,48 @@
-/// Wishbone bus socket.
-///
-/// Standard Wishbone B.4 signals for a 32-bit data bus.
-/// All signals are from the master's perspective.
+//> Wishbone bus socket.
+//>
+//> Standard Wishbone B.4 signals for a 32-bit data bus.
+//> All signals are from the master's perspective.
 socket Wishbone {
-    /// Cycle start: the master asserts this for the duration of a bus transaction.
+    //> Cycle start: the master asserts this for the duration of a bus transaction.
     cosi cyc : Bit
-    /// Strobe: the master asserts this during the data phase.
+    //> Strobe: the master asserts this during the data phase.
     cosi stb : Bit
-    /// Write enable: high for write, low for read.
+    //> Write enable: high for write, low for read.
     cosi we : Bit
-    /// Address (32-bit byte address).
+    //> Address (32-bit byte address).
     cosi adr : Word[32]
-    /// Write data.
+    //> Write data.
     cosi dat_wr : Word[32]
-    /// Byte-select mask (one hot per byte lane).
+    //> Byte-select mask (one hot per byte lane).
     cosi sel : Word[4]
 
-    /// Acknowledge: the slave asserts this when the transfer is complete.
+    //> Acknowledge: the slave asserts this when the transfer is complete.
     soci ack : Bit
-    /// Error: the slave asserts this on an error.
+    //> Error: the slave asserts this on an error.
     soci err : Bit
-    /// Read data.
+    //> Read data.
     soci dat_rd : Word[32]
 }
 
-/// Arbiter state: which master is being served by an arbiter.
+//> Arbiter state: which master is being served by an arbiter.
 union type Serving {
-    /// No master currently being served.
+    //> No master currently being served.
     Idle()
-    /// Serving master 0.
+    //> Serving master 0.
     ServingClient0()
-    /// Serving master 1.
+    //> Serving master 1.
     ServingClient1()
 }
 
-/// Round-robin priority state for the arbiter.
+//> Round-robin priority state for the arbiter.
 union type Priority {
-    /// Client 0 has priority on the next tie.
+    //> Client 0 has priority on the next tie.
     Client0First()
-    /// Client 1 has priority on the next tie.
+    //> Client 1 has priority on the next tie.
     Client1First()
 }
 
-/// Server-select state: which slave is being served by a mux.
+//> Server-select state: which slave is being served by a mux.
 union type SelState {
     Server0()
     Server1()
@@ -54,11 +54,11 @@ mod WbMux13 {
     client socket server_1 of Wishbone
     client socket server_2 of Wishbone
 
-    /// Server socket for the upstream master.
-    ///
-    /// Routes strobe/cycle to the selected slave, broadcasts the
-    /// remaining master signals, muxes the response, and generates
-    /// an error on decode_err.
+    //> Server socket for the upstream master.
+    //>
+    //> Routes strobe/cycle to the selected slave, broadcasts the
+    //> remaining master signals, muxes the response, and generates
+    //> an error on decode_err.
     server socket client_0 of Wishbone {
         if it.cyc {
             server_0.cyc := serving == @Server0()
@@ -119,7 +119,7 @@ mod WbMux13 {
         }
     }
 
-    /// Registered slave-select state (used to mux read-data).
+    //> Registered slave-select state (used to mux read-data).
     wire serving : SelState {
         it := match client_0.adr[32..29] {
             case 0b001 => @Server0()

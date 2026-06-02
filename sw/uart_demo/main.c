@@ -70,8 +70,8 @@ unsigned char getc(void) {
     return (unsigned char)(UART_BASE[REG_RBR] & 0xff);
 }
 
-/// Write a single character to the UART, busy-waiting for the transmitter
-/// to be ready (TEMT = Transmitter Empty).
+//> Write a single character to the UART, busy-waiting for the transmitter
+//> to be ready (TEMT = Transmitter Empty).
 void putc(unsigned char c) {
     while (!(UART_BASE[REG_LSR] & LSR_TEMT)) ;
     UART_BASE[REG_THR] = c;

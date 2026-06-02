@@ -14,7 +14,7 @@ import spi
 import uart
 import wishbone
 
-/// Top module: the outermost entity of the design.
+//> Top module: the outermost entity of the design.
 export mod Top {
     incoming clock : Clock {
         cpu.clock := it
@@ -35,17 +35,17 @@ export mod Top {
         it <= if reset { 0w32 } else { it + 1w32 }
     }
 
-    /// CPU core instance.
+    //> CPU core instance.
     mod cpu of cpu::Cpu
 
-    /// Wishbone address decoder.
-    ///
-    /// Routes transactions by comparing the top 3 address bits against
-    /// each slave's base:
-    ///   0x2 → SPI  (0x2000_0000)
-    ///   0x4 → UART (0x4000_0000)
-    ///   0x8 → RAM  (0x8000_0000)
-    ///
+    //> Wishbone address decoder.
+    //>
+    //> Routes transactions by comparing the top 3 address bits against
+    //> each slave's base:
+    //>   0x2 → SPI  (0x2000_0000)
+    //>   0x4 → UART (0x4000_0000)
+    //>   0x8 → RAM  (0x8000_0000)
+    //>
     mod mux13 of wishbone::WbMux13 {
         it.client_0 :=: cpu.mem
 
@@ -54,25 +54,25 @@ export mod Top {
         it.server_2 :=: mem.wb
     }
 
-    /// Return code from the CPU (register a0 value at EBREAK).
+    //> Return code from the CPU (register a0 value at EBREAK).
     outgoing return_code : Word[32] {
         it := cpu.return_code
     }
 
-    /// RAM instance (Wishbone-attached).
+    //> RAM instance (Wishbone-attached).
     mod mem of mem::WbMem
 
-    /// UART instance (Wishbone-attached).
+    //> UART instance (Wishbone-attached).
     mod uart_dev of uart::WbUart {
         uart     :=: it.uart
     }
 
-    /// SPI flash controller instance.
+    //> SPI flash controller instance.
     mod spi_flash of spi::WbSpiFlash {
         spi         :=: it.spi
     }
 
-    /// Finish indicator: asserted when the CPU reaches the Breaked state.
+    //> Finish indicator: asserted when the CPU reaches the Breaked state.
     outgoing fin : Bit {
         it := cpu.is_breaked
     }

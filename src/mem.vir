@@ -6,14 +6,14 @@
 
 import wishbone
 
-/// Wishbone-attached memory.
-///
-/// Wraps the external `Mem` primitive behind a Wishbone client socket.
-/// Converts Wishbone transactions into `Mem` read/write operations.
+//> Wishbone-attached memory.
+//>
+//> Wraps the external `Mem` primitive behind a Wishbone client socket.
+//> Converts Wishbone transactions into `Mem` read/write operations.
 mod WbMem {
-    /// Global clock.
+    //> Global clock.
     incoming clock : Clock
-    /// Wishbone server socket accepting transactions from a master.
+    //> Wishbone server socket accepting transactions from a master.
     server socket wb of wishbone::Wishbone {
         // Acknowledge every strobe immediately (single-cycle memory).
         it.ack := it.stb
@@ -23,7 +23,7 @@ mod WbMem {
         unused it.sel
     }
 
-    /// Internal memory array.
+    //> Internal memory array.
     mod mem of Mem {
         it.clock   := clock
         it.addr    := wb.adr
@@ -35,39 +35,39 @@ mod WbMem {
     }
 }
 
-/// External memory array.
-///
-/// A flat 32-bit addressable memory. This is an `ext` module because it is
-/// implemented by an FPGA block RAM or similar primitive.
+//> External memory array.
+//>
+//> A flat 32-bit addressable memory. This is an `ext` module because it is
+//> implemented by an FPGA block RAM or similar primitive.
 ext mod Mem {
-    /// Global clock.
+    //> Global clock.
     incoming clock : Clock
-    /// Read/write address.
+    //> Read/write address.
     incoming addr : Word[32]
-    /// Data read from `addr`.
+    //> Data read from `addr`.
     outgoing data_out : Word[32]
-    /// Data to write into `addr` (used when `write` is high).
+    //> Data to write into `addr` (used when `write` is high).
     incoming data_in : Word[32]
-    /// Write enable.
+    //> Write enable.
     incoming write : Bit
-    /// Read enable.
+    //> Read enable.
     incoming read : Bit
     incoming sel  : Word[4]
 }
 
-/// External CSR (control and status register) file.
-///
-/// Provides read/write access to the machine-level CSRs.
-/// This is an `ext` module because the CSR storage is external.
+//> External CSR (control and status register) file.
+//>
+//> Provides read/write access to the machine-level CSRs.
+//> This is an `ext` module because the CSR storage is external.
 ext mod Csrs {
-    /// Global clock.
+    //> Global clock.
     incoming clock : Clock
-    /// CSR address (12-bit, see `opcode::Csr`).
+    //> CSR address (12-bit, see `opcode::Csr`).
     incoming addr : Word[12]
-    /// Data read from the selected CSR.
+    //> Data read from the selected CSR.
     outgoing data_out : Word[32]
-    /// Data to write into the selected CSR.
+    //> Data to write into the selected CSR.
     incoming data_in : Word[32]
-    /// Write enable.
+    //> Write enable.
     incoming write : Bit
 }
