@@ -60,17 +60,13 @@ mod WbMux13 {
     //> remaining master signals, muxes the response, and generates
     //> an error on decode_err.
     server socket client_0 of Wishbone {
-        if it.cyc {
-            server_0.cyc := serving == @Server0()
-            server_1.cyc := serving == @Server1()
-            server_2.cyc := serving == @Server2()
-        }
+        server_0.cyc := it.cyc && serving == @Server0()
+        server_1.cyc := it.cyc && serving == @Server1()
+        server_2.cyc := it.cyc && serving == @Server2()
 
-        if it.stb {
-            server_0.stb := serving == @Server0()
-            server_1.stb := serving == @Server1()
-            server_2.stb := serving == @Server2()
-        }
+        server_0.stb := it.stb && serving == @Server0()
+        server_1.stb := it.stb && serving == @Server1()
+        server_2.stb := it.stb && serving == @Server2()
 
         it.err := server_0.err || server_1.err || server_2.err
         it.ack := match serving {
@@ -79,20 +75,9 @@ mod WbMux13 {
             case @Server2() => server_2.ack
         }
 
-        match serving {
-            case @Server0() => {
-            }
-            case @Server1() => {
-            }
-            case @Server2() => {
-            }
-        }
-
-        if client_0.we {
-            server_0.we     := serving == @Server0
-            server_1.we     := serving == @Server1
-            server_2.we     := serving == @Server2
-        }
+        server_0.we := client_0.we && serving == @Server0()
+        server_1.we := client_0.we && serving == @Server1()
+        server_2.we := client_0.we && serving == @Server2()
 
         server_0.adr    := zext(it.adr[29..0])
         server_1.adr    := zext(it.adr[29..0])
@@ -106,16 +91,10 @@ mod WbMux13 {
         server_1.dat_wr := it.dat_wr
         server_2.dat_wr := it.dat_wr
 
-        match serving {
-            case @Server0() => {
-                it.dat_rd := server_0.dat_rd
-            }
-            case @Server1() => {
-                it.dat_rd := server_1.dat_rd
-            }
-            case @Server2() => {
-                it.dat_rd := server_2.dat_rd
-            }
+        it.dat_rd := match serving {
+            case @Server0() => server_0.dat_rd
+            case @Server1() => server_1.dat_rd
+            case @Server2() => server_2.dat_rd
         }
     }
 

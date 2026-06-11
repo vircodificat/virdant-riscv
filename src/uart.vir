@@ -56,12 +56,11 @@ mod WbUart {
     // rx_pending latches high on receiver.data_valid and clears
     // when software reads the RBR.
     reg rx_pending : Bit on clock {
-        if reset {
-            it <= false
-        } else if receiver.data_valid {
-            it <= true
-        } else if sel_rbr && wb.cyc && wb.stb {
-            it <= false
+        it <= when {
+            case reset => false
+            case receiver.data_valid => true
+            case sel_rbr && wb.cyc && wb.stb => false
+            else => it
         }
     }
 }
@@ -112,10 +111,9 @@ export mod ExampleTop {
         it.data_valid := true
     }
     reg cycle      : Word[32] on clock {
-        if reset {
-            it            <= 0w32
-        } else {
-            it            <= it + 1w32
+        it <= when {
+            case reset => 0w32
+            else => it + 1w32
         }
     }
 }
@@ -134,15 +132,13 @@ mod UartSender {
 
     // Serial output register – directly drives uart_tx.
     reg uart_tx_reg : Bit on clock {
-        if reset {
-            it                  <= true
-        } else {
-            match state {
-                case #Idle => { it  <= true }
-                case #Start => { it <= false }
-                case #Bit => { it   <= shift[0] }
-                case #Stop => { it  <= true }
-            }
+        it <= when {
+            case reset => true
+            case state == #Idle => true
+            case state == #Start => false
+            case state == #Bit => shift[0]
+            case state == #Stop => true
+            else => it
         }
     }
 
@@ -151,57 +147,49 @@ mod UartSender {
     // boundary the register is shifted right by one, so [0] always
     // contains the correct bit without any multiplexer cascade.
     reg shift : Word[8] on clock {
-        if reset {
-            it                 <= 0w8
-        } else {
-            match state {
-                case #Idle => { it <= if data_valid { data } else { it } }
-                case #Bit => {
-                    it                 <= if pulse == 0w11 { word(0w1, it[8..1]) } else { it }
-                }
-            }
+        it <= when {
+            case reset => 0w8
+            case state == #Idle && data_valid => data
+            case state == #Bit && pulse == 0w11 => word(0w1, it[8..1])
+            else => it
         }
     }
 
     // --- FSM state ---
     reg state : UartFsmState on clock {
-        if reset {
-            it                  <= #Idle
-        } else {
-            match it {
-                case #Idle => { it  <= if data_valid { #Start } else { #Idle } }
-                case #Start => { it <= if pulse == 0w11 { #Bit } else { #Start } }
-                case #Bit => { it   <= if pulse == 0w11 && bitnum == 7w3 { #Stop } else { #Bit } }
-                case #Stop => { it  <= if pulse == 0w11 { #Idle } else { #Stop } }
-            }
+        it <= when {
+            case reset => #Idle
+            case state == #Idle && data_valid => #Start
+            case state == #Start && pulse == 0w11 => #Bit
+            case state == #Bit && pulse == 0w11 && bitnum == 7w3 => #Stop
+            case state == #Stop && pulse == 0w11 => #Idle
+            else => it
         }
     }
 
     // --- baud-rate pulse countdown (1250 ≈ 12 MHz / 9600) ---
     reg pulse : Word[11] on clock {
-        if reset {
-            it                  <= 0w11
-        } else {
-            match state {
-                case #Idle => { it  <= if data_valid { 1250w11 } else { 0w11 } }
-                case #Start => { it <= if it == 0w11 { 1250w11 } else { it - 1 } }
-                case #Bit => { it   <= if it == 0w11 { 1250w11 } else { it - 1 } }
-                case #Stop => { it  <= if it == 0w11 { 0w11 } else { it - 1 } }
-            }
+        it <= when {
+            case reset => 0w11
+            case state == #Idle && data_valid => 1250w11
+            case state == #Idle => 0w11
+            case state == #Start && it == 0w11 => 1250w11
+            case state == #Start => it - 1
+            case state == #Bit && it == 0w11 => 1250w11
+            case state == #Bit => it - 1
+            case state == #Stop && it == 0w11 => 0w11
+            case state == #Stop => it - 1
+            else => it
         }
     }
 
     // --- bit counter ---
     reg bitnum : Word[3] on clock {
-        if reset {
-            it                  <= 0w3
-        } else {
-            match state {
-                case #Idle => { it  <= it }
-                case #Start => { it <= if pulse == 0w11 { 0w3 } else { it } }
-                case #Bit => { it   <= if pulse == 0w11 && it < 7w3 { it + 1 } else { it } }
-                case #Stop => { it  <= it }
-            }
+        it <= when {
+            case reset => 0w3
+            case state == #Start && pulse == 0w11 => 0w3
+            case state == #Bit && pulse == 0w11 && it < 7w3 => it + 1
+            else => it
         }
     }
 }
@@ -219,15 +207,13 @@ mod UartReceiver {
 
     // --- FSM state ---
     reg state : UartFsmState on clock {
-        if reset {
-            it                  <= #Idle
-        } else {
-            match it {
-                case #Idle => { it  <= if uart_rx == false { #Start } else { #Idle } }
-                case #Start => { it <= if pulse == 0w11 { #Bit } else { #Start } }
-                case #Bit => { it   <= if pulse == 0w11 && bitnum == 7w3 { #Stop } else { #Bit } }
-                case #Stop => { it  <= if pulse == 0w11 { #Idle } else { #Stop } }
-            }
+        it <= when {
+            case reset => #Idle
+            case state == #Idle && uart_rx == false => #Start
+            case state == #Start && pulse == 0w11 => #Bit
+            case state == #Bit && pulse == 0w11 && bitnum == 7w3 => #Stop
+            case state == #Stop && pulse == 0w11 => #Idle
+            else => it
         }
     }
 
@@ -237,50 +223,50 @@ mod UartReceiver {
     // uses a slightly shorter period (1150 ticks) to avoid sampling past
     // the stop-bit edge.
     reg pulse : Word[11] on clock {
-        if reset {
-            it                  <= 0w11
-        } else {
-            match state {
-                case #Idle => { it  <= if uart_rx == false { 625w11 } else { 0w11 } }
-                case #Start => { it <= if it == 0w11 { 1250w11 } else { it - 1 } }
-                case #Bit => {
-                    it                  <= if it == 0w11 && bitnum < 7w3 { 1250w11 }
-                    else if it == 0w11 { 1150w11 }
-                    else { it - 1 }
+        it <= when {
+            case reset => 0w11
+            else match state {
+                case #Idle when {
+                    case uart_rx == false => 625w11
+                    else => 0w11
                 }
-                case #Stop => { it  <= if it == 0w11 { 0w11 } else { it - 1 } }
+                case #Start when {
+                    case it == 0w11 => 1250w11
+                    else => it - 1
+                }
+                case #Bit when {
+                    case it == 0w11 when {
+                        case bitnum < 7w3 => 1250w11
+                        else => 1150w11
+                    }
+                    else => it - 1
+                }
+                case #Stop when {
+                    case it == 0w11 => 0w11
+                    else => it - 1
+                }
+                else => it
             }
         }
     }
 
     // --- bit counter ---
     reg bitnum : Word[3] on clock {
-        if reset {
-            it                  <= 0w3
-        } else {
-            match state {
-                case #Idle => { it  <= it }
-                case #Start => { it <= if pulse == 0w11 { 0w3 } else { it } }
-                case #Bit => { it   <= if pulse == 0w11 && it < 7w3 { it + 1 } else { it } }
-                case #Stop => { it  <= it }
-            }
+        it <= when {
+            case reset => 0w3
+            case state == #Start && pulse == 0w11 => 0w3
+            case state == #Bit && pulse == 0w11 && it < 7w3 => it + 1
+            else => it
         }
     }
 
     // Shift register – incoming bits are shifted in from the MSB side
     // so that after 8 captures the byte is correctly assembled (LSB in [0]).
     reg shift : Word[8] on clock {
-        if reset {
-            it                  <= 0w8
-        } else {
-            match state {
-                case #Idle => { it  <= it }
-                case #Start => { it <= it }
-                case #Bit => {
-                    it                  <= if pulse == 0w11 { word(uart_rx, it[8..1]) } else { it }
-                }
-                case #Stop => { it  <= it }
-            }
+        it <= when {
+            case reset => 0w8
+            case state == #Bit && pulse == 0w11 => word(uart_rx, it[8..1])
+            else => it
         }
     }
 }

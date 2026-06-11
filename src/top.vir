@@ -32,11 +32,14 @@ export mod Top {
     client socket uart of uart::Uart
 
     reg cycle : Word[32] on clock {
-        it <= if reset { 0w32 } else { it + 1w32 }
+        it <= when {
+            case reset => 0w32
+            else => it + 1w32
+        }
     }
 
     //> CPU core instance.
-    mod cpu of cpu::Cpu
+    mod cpu of cpu::Cpu {}
 
     //> Wishbone address decoder.
     //>

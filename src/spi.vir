@@ -67,28 +67,16 @@ mod SpiFlash {
     incoming reset : Reset
 
     client socket spi of Spi {
-        if reset {
-            it.do := true
-            it.cs := true
-        } else {
-            match state {
-                case #Idle => {
-                    it.do := true
-                    it.cs := true
-                }
-                case #Send => {
-                    it.do := buffer[31]
-                    it.cs := false
-                }
-                case #Recv => {
-                    it.do := true
-                    it.cs := false
-                }
-                case #Done => {
-                    it.do := true
-                    it.cs := true
-                }
-            }
+        it.do := when {
+            case reset || state == #Idle || state == #Done => true
+            case state == #Send => buffer[31]
+            case state == #Recv => true
+            else => true
+        }
+        it.cs := when {
+            case reset || state == #Idle || state == #Done => true
+            case state == #Send || state == #Recv => false
+            else => true
         }
     }
 
@@ -106,72 +94,42 @@ mod SpiFlash {
     }
 
     reg state : State on clock {
-        if reset {
-            it <= #Idle
-        } else {
-            match it {
-                case #Idle => {
-                    if read_enable {
-                        it <= #Send
-                    } else {
-                        it <= #Idle
-                    }
-                }
-                case #Send => {
-                    if buffer_index == 0b11111w5 && !half_clock {
-                        it <= #Recv
-                    }
-                }
-                case #Recv => {
-                    if buffer_index == 0b11111w5 && !half_clock {
-                        it <= #Done
-                    }
-                }
-                case #Done => {
-                    it <= #Idle
-                }
-            }
+        it <= when {
+            case reset => #Idle
+            case state == #Idle && read_enable => #Send
+            case state == #Send && buffer_index == 31w5 && !half_clock => #Recv
+            case state == #Recv && buffer_index == 31w5 && !half_clock => #Done
+            case state == #Done => #Idle
+            else => it
         }
     }
 
-    reg buffer : Word[32] on clock
-    reg buffer_index : Word[5] on clock
+    reg buffer : Word[32] on clock {
+        it <= when {
+            case !half_clock && state == #Idle => word(0x03w8, addr[24..0])
+            case !half_clock && state == #Send => word(it[31..0], 0w1)
+            case !half_clock && state == #Recv => word(it[31..0], spi.di)
+            case !half_clock => 0
+            else => it
+        }
+    }
 
-    if !half_clock {
-        match state {
-            case #Idle => {
-                buffer <= word(0x03w8, addr[24..0])
-                buffer_index <= 0
-            }
-            case #Send => {
-                buffer <= word(buffer[31..0], 0w1)
-                buffer_index <= if buffer_index != 31w5 {
-                    buffer_index + 1
-                } else {
-                    0
-                }
-            }
-            case #Recv => {
-                buffer <= word(buffer[31..0], spi.di)
-                buffer_index <= if buffer_index != 31w5 {
-                    buffer_index + 1
-                } else {
-                    0
-                }
-            }
-            else => {
-                buffer <= 0
-            }
+    reg buffer_index : Word[5] on clock {
+        it <= when {
+            case !half_clock && state == #Idle => 0
+            case !half_clock && state == #Send && it != 31w5 => it + 1
+            case !half_clock && state == #Send => 0
+            case !half_clock && state == #Recv && it != 31w5 => it + 1
+            case !half_clock && state == #Recv => 0
+            else => it
         }
     }
 
     reg half_clock : Bit on clock {
-        it <= if reset {
-            false
-        } else if state == #Idle {
-            true
-        } else {
-            !it
+        it <= when {
+            case reset => false
+            case state == #Idle => true
+            else => !it
         }
     }
 

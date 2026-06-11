@@ -40,59 +40,39 @@ mod IDecode {
 
     //> Decoded 7-bit primary opcode (`instr[6:0]`).
     outgoing wire opcode : opcode::Opcode {
-        match opcode_bits {
-            case 99  => {
-                it             := #BRANCH
-                illegal_opcode := false
-            }
-            case 103  => {
-                it             := #JALR
-                illegal_opcode := false
-            }
-            case 111  => {
-                it             := #JAL
-                illegal_opcode := false
-            }
-            case 19  => {
-                it             := #OP_IMM
-                illegal_opcode := false
-            }
-            case 51  => {
-                it             := #OP
-                illegal_opcode := false
-            }
-            case 55  => {
-                it             := #LUI
-                illegal_opcode := false
-            }
-            case 3  => {
-                it             := #LOAD
-                illegal_opcode := false
-            }
-            case 115  => {
-                it             := #SYSTEM
-                illegal_opcode := false
-            }
-            case 35  => {
-                it             := #STORE
-                illegal_opcode := false
-            }
-            case 23  => {
-                it             := #AUIPC
-                illegal_opcode := false
-            }
-            case 15  => {
-                it             := #FENCE
-                illegal_opcode := false
-            }
-            else =>  {
-                it             := #SYSTEM
-                illegal_opcode := true
-            }
+        it := match opcode_bits {
+            case 99 => #BRANCH
+            case 103 => #JALR
+            case 111 => #JAL
+            case 19 => #OP_IMM
+            case 51 => #OP
+            case 55 => #LUI
+            case 3 => #LOAD
+            case 115 => #SYSTEM
+            case 35 => #STORE
+            case 23 => #AUIPC
+            case 15 => #FENCE
+            else => #SYSTEM
         }
     }
 
-    outgoing wire illegal_opcode : Bit
+    //> Whether the opcode is illegal (not a recognized RISC-V primary opcode).
+    outgoing wire illegal_opcode : Bit {
+        it := match opcode_bits {
+            case 99 => false
+            case 103 => false
+            case 111 => false
+            case 19 => false
+            case 51 => false
+            case 55 => false
+            case 3 => false
+            case 115 => false
+            case 35 => false
+            case 23 => false
+            case 15 => false
+            else => true
+        }
+    }
 
     // Immediate value, computed per RISC-V spec for each instruction format.
     imm := match opcode {
