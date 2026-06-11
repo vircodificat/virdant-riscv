@@ -63,128 +63,146 @@ mod Control {
     // Decode each opcode into control signals via individual match expressions.
     // Each signal is driven by a match on `opcode`, with nested match/when
     // for signals that depend on funct3, funct7, or system_op.
-    write_to_mem := match opcode {
-        case #STORE => true
-        else => false
-    }
-
-    rf_write := match opcode {
-        case #BRANCH => false
-        case #FENCE => false
-        case #STORE => false
-        case #SYSTEM when {
-            case funct3 == 0b000 => false
-            else => true
-        }
-        else => true
-    }
-
-    take_branch := match opcode {
-        case #BRANCH => alu_z[0]
-        case #JALR => true
-        case #JAL => true
-        else => false
-    }
-
-    csr_rw := match opcode {
-        case #SYSTEM when {
-            case funct3 == 0b000 => false
-            else => true
-        }
-        else => false
-    }
-
-    is_break := match opcode {
-        case #SYSTEM => system_op.op == #Ecall || system_op.op == #Ebreak
-        else => false
-    }
-
-    alu_source_a := match opcode {
-        case #AUIPC => #Pc
-        case #SYSTEM when {
-            case funct3 == 0b000 => #Rs1
-            else => #Csr
-        }
-        else => #Rs1
-    }
-
-    alu_source_b := match opcode {
-        case #BRANCH => #Rs2
-        case #JAL => #Rs2
-        case #JALR => #Imm
-        case #OP_IMM => #Imm
-        case #LUI => #Imm
-        case #AUIPC => #Imm
-        case #LOAD => #Imm
-        case #STORE => #Imm
-        case #FENCE => #Rs2
-        case #OP => #Rs2
-        case #SYSTEM when {
-            case funct3 == 0b000 => #Rs2
-            case funct3 == 0b001 || funct3 == 0b010 || funct3 == 0b011 => #Rs1
-            case funct3 == 0b101 || funct3 == 0b110 || funct3 == 0b111 => #Imm
-            else => #Rs2
+    wire write_to_mem : Bit {
+        it := match opcode {
+            case #STORE => true
+            else => false
         }
     }
 
-    rd_source := match opcode {
-        case #BRANCH => #AluZ
-        case #JALR => #PcPlus4
-        case #JAL => #PcPlus4
-        case #OP_IMM => #AluZ
-        case #OP => #AluZ
-        case #LUI => #Imm
-        case #AUIPC => #PcPlusImm
-        case #LOAD => #Mem
-        case #STORE => #AluZ
-        case #FENCE => #AluZ
-        case #SYSTEM when {
-            case funct3 == 0b000 => #AluZ
-            else => #Csr
-        }
+    //> Memory write enable (high for STORE, low otherwise).
+    outgoing mem_write : Bit {
+        it := write_to_mem && stage != #Fetching
     }
-
-    alu_op := match opcode {
-        case #BRANCH match funct3 {
-            case 0 => #Eq
-            case 1 => #Neq
-            case 4 => #Lt
-            case 5 => #Gte
-            case 6 => #Ltu
-            case 7 => #Gteu
-            else   => #Add
-        }
-        case #JALR => #Zero
-        case #JAL => #Zero
-        case #OP_IMM => alu_op_from_funct37.op
-        case #OP => alu_op_from_funct37.op
-        case #LUI => #Zero
-        case #AUIPC => #Add
-        case #LOAD => #Add
-        case #STORE => #Add
-        case #FENCE => #Add
-        case #SYSTEM when {
-            case funct3 == 0b000 => #Add
-            case funct3 == 0b001 => #PassA
-            case funct3 == 0b010 => #Or
-            case funct3 == 0b011 => #Clear
-            case funct3 == 0b101 => #PassA
-            case funct3 == 0b110 => #Or
-            case funct3 == 0b111 => #Clear
-            else => #Add
-        }
-    }
-
-    csr := match opcode {
-        case #SYSTEM when {
-            case funct3 == 0b000 match system_op.op {
-                case #Mret => 0x341w12
-                case #Sret => 0w12
-                else       => 0w12
+    //> Register-file write enable.
+    outgoing rf_write : Bit {
+        it := match opcode {
+            case #BRANCH => false
+            case #FENCE => false
+            case #STORE => false
+            case #SYSTEM when {
+                case funct3 == 0b000 => false
+                else => true
             }
-            else => funct12
+            else => true
         }
-        else => dontcare
+    }
+    //> CSR read/write enable.
+    outgoing csr_rw : Bit {
+        it := match opcode {
+            case #SYSTEM when {
+                case funct3 == 0b000 => false
+                else => true
+            }
+            else => false
+        }
+    }
+    //> Branch taken (for JAL, JALR, and conditional branches).
+    outgoing take_branch : Bit {
+        it := match opcode {
+            case #BRANCH => alu_z[0]
+            case #JALR => true
+            case #JAL => true
+            else => false
+        }
+    }
+    //> Selector for ALU A-operand mux.
+    outgoing alu_source_a : AluSourceA {
+        it := match opcode {
+            case #AUIPC => #Pc
+            case #SYSTEM when {
+                case funct3 == 0b000 => #Rs1
+                else => #Csr
+            }
+            else => #Rs1
+        }
+    }
+    //> Selector for ALU B-operand mux.
+    outgoing alu_source_b : AluSourceB {
+        it := match opcode {
+            case #BRANCH => #Rs2
+            case #JAL => #Rs2
+            case #JALR => #Imm
+            case #OP_IMM => #Imm
+            case #LUI => #Imm
+            case #AUIPC => #Imm
+            case #LOAD => #Imm
+            case #STORE => #Imm
+            case #FENCE => #Rs2
+            case #OP => #Rs2
+            case #SYSTEM when {
+                case funct3 == 0b000 => #Rs2
+                case funct3 == 0b001 || funct3 == 0b010 || funct3 == 0b011 => #Rs1
+                case funct3 == 0b101 || funct3 == 0b110 || funct3 == 0b111 => #Imm
+                else => #Rs2
+            }
+        }
+    }
+    //> Selector for register-file writeback mux.
+    outgoing rd_source : RdSource {
+        it := match opcode {
+            case #BRANCH => #AluZ
+            case #JALR => #PcPlus4
+            case #JAL => #PcPlus4
+            case #OP_IMM => #AluZ
+            case #OP => #AluZ
+            case #LUI => #Imm
+            case #AUIPC => #PcPlusImm
+            case #LOAD => #Mem
+            case #STORE => #AluZ
+            case #FENCE => #AluZ
+            case #SYSTEM when {
+                case funct3 == 0b000 => #AluZ
+                else => #Csr
+            }
+        }
+    }
+    //> ALU operation code (decoded from funct3/funct7).
+    outgoing alu_op : opcode::AluOpcode {
+        it := match opcode {
+            case #BRANCH match funct3 {
+                case 0 => #Eq
+                case 1 => #Neq
+                case 4 => #Lt
+                case 5 => #Gte
+                case 6 => #Ltu
+                case 7 => #Gteu
+                else   => #Add
+            }
+            case #JALR => #Zero
+            case #JAL => #Zero
+            case #OP_IMM => alu_op_from_funct37.op
+            case #OP => alu_op_from_funct37.op
+            case #LUI => #Zero
+            case #AUIPC => #Add
+            case #LOAD => #Add
+            case #STORE => #Add
+            case #FENCE => #Add
+            case #SYSTEM when {
+                case funct3 == 0b000 => #Add
+                case funct3 == 0b001 => #PassA
+                case funct3 == 0b010 => #Or
+                case funct3 == 0b011 => #Clear
+                case funct3 == 0b101 => #PassA
+                case funct3 == 0b110 => #Or
+                case funct3 == 0b111 => #Clear
+                else => #Add
+            }
+        }
+    }
+    //> CSR address (for CSR read/write instructions).
+    outgoing csr : Word[12] {
+        it := match opcode {
+            case #SYSTEM when {
+                case funct3 == 0b000 match system_op.op {
+                    case #Mret => 0x341w12
+                    case #Sret => 0w12
+                    else       => 0w12
+                }
+                else => funct12
+            }
+            else => dontcare
+        }
     }
 
     //> Decoder that maps funct3/funct7 to an ALU opcode for OP and OP-IMM.
@@ -202,30 +220,6 @@ mod Control {
         it := is_fetching || opcode == #LOAD || opcode == #STORE
     }
 
-    wire write_to_mem : Bit
-
-    //> Memory write enable (high for STORE, low otherwise).
-    outgoing mem_write : Bit {
-        it := write_to_mem && stage != #Fetching
-    }
-    //> Register-file write enable.
-    outgoing rf_write : Bit
-    //> CSR read/write enable.
-    outgoing csr_rw : Bit
-    //> Branch taken (for JAL, JALR, and conditional branches).
-    outgoing take_branch : Bit
-    //> Selector for ALU A-operand mux.
-    outgoing alu_source_a : AluSourceA
-    //> Selector for ALU B-operand mux.
-    outgoing alu_source_b : AluSourceB
-    //> Selector for register-file writeback mux.
-    outgoing rd_source : RdSource
-    //> ALU operation code (decoded from funct3/funct7).
-    outgoing alu_op : opcode::AluOpcode
-    //> CSR address (for CSR read/write instructions).
-    outgoing csr : Word[12]
-
-    //> System-opcode decoder sub-module.
     mod system_op of SystemOpFromFunct12 {
         it.funct12 := funct12
     }
@@ -279,7 +273,12 @@ mod Control {
     }
 
     //> Break instruction detected (ECALL or EBREAK).
-    outgoing is_break : Bit
+    outgoing is_break : Bit {
+        it := match opcode {
+            case #SYSTEM => system_op.op == #Ecall || system_op.op == #Ebreak
+            else => false
+        }
+    }
 
     //> Memory acknowledge signal from the Wishbone bus.
     incoming mem_ack : Bit

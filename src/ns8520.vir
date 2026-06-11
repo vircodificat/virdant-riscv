@@ -16,7 +16,9 @@ mod Ns8520 {
     //> A-channel valid (TileLink-style request valid).
     incoming a_valid : Bit
     //> A-channel ready (request ready).
-    outgoing a_ready : Bit
+    outgoing a_ready : Bit {
+        it := false
+    }
     //> A-channel opcode.
     incoming a_opcode : Bit
     //> A-channel parameter.
@@ -33,31 +35,49 @@ mod Ns8520 {
     incoming a_data : Bit
 
     //> D-channel valid (TileLink-style response valid).
-    outgoing d_valid : Bit
+    outgoing d_valid : Bit {
+        it := false
+    }
     //> D-channel ready (response ready).
     incoming d_ready : Bit
-    //> D-channel opcode.
-    outgoing d_opcode : Bit
-    //> D-channel parameter.
-    outgoing d_param : Bit
-    //> D-channel size.
-    outgoing d_size : Bit
-    //> D-channel source identifier.
-    outgoing d_source : Bit
-    //> D-channel address.
-    outgoing d_addr : Bit
-    //> D-channel byte mask.
-    outgoing d_mask : Bit
-    //> D-channel read data.
-    outgoing d_data : Bit
 
-    a_ready  := false
-    d_valid  := false
-    d_opcode := false
-    d_param  := false
-    d_size   := false
-    d_source := false
-    d_addr   := false
-    d_mask   := false
-    d_data   := false
+    // Unused stub inputs.
+    unused a_valid
+    unused a_opcode
+    unused a_param
+    unused a_size
+    unused a_source
+    unused a_addr
+    unused a_mask
+    unused a_data
+    unused d_ready
+
+    //> D-channel opcode.
+    outgoing d_opcode : Bit {
+        it := false
+    }
+    //> D-channel parameter.
+    outgoing d_param : Bit {
+        it := false
+    }
+    //> D-channel size.
+    outgoing d_size : Bit {
+        it := false
+    }
+    //> D-channel source identifier.
+    outgoing d_source : Bit {
+        it := false
+    }
+    //> D-channel address.
+    outgoing d_addr : Bit {
+        it := false
+    }
+    //> D-channel byte mask.
+    outgoing d_mask : Bit {
+        it := false
+    }
+    //> D-channel read data.
+    outgoing d_data : Bit {
+        it := false
+    }
 }

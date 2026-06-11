@@ -75,9 +75,9 @@ mod WbMux13 {
             case @Server2() => server_2.ack
         }
 
-        server_0.we := client_0.we && serving == @Server0()
-        server_1.we := client_0.we && serving == @Server1()
-        server_2.we := client_0.we && serving == @Server2()
+        server_0.we := it.we && serving == @Server0()
+        server_1.we := it.we && serving == @Server1()
+        server_2.we := it.we && serving == @Server2()
 
         server_0.adr    := zext(it.adr[29..0])
         server_1.adr    := zext(it.adr[29..0])

@@ -159,11 +159,24 @@ mod UartSender {
     reg state : UartFsmState on clock {
         it <= when {
             case reset => #Idle
-            case state == #Idle && data_valid => #Start
-            case state == #Start && pulse == 0w11 => #Bit
-            case state == #Bit && pulse == 0w11 && bitnum == 7w3 => #Stop
-            case state == #Stop && pulse == 0w11 => #Idle
-            else => it
+            else match it {
+                case #Idle when {
+                    case data_valid => #Start
+                    else => it
+                }
+                case #Start when {
+                    case pulse == 0w11 => #Bit
+                    else => it
+                }
+                case #Bit when {
+                    case pulse == 0w11 && bitnum == 7w3 => #Stop
+                    else => it
+                }
+                case #Stop when {
+                    case pulse == 0w11 => #Idle
+                    else => it
+                }
+            }
         }
     }
 
@@ -209,11 +222,24 @@ mod UartReceiver {
     reg state : UartFsmState on clock {
         it <= when {
             case reset => #Idle
-            case state == #Idle && uart_rx == false => #Start
-            case state == #Start && pulse == 0w11 => #Bit
-            case state == #Bit && pulse == 0w11 && bitnum == 7w3 => #Stop
-            case state == #Stop && pulse == 0w11 => #Idle
-            else => it
+            else match it {
+                case #Idle when {
+                    case uart_rx == false => #Start
+                    else => it
+                }
+                case #Start when {
+                    case pulse == 0w11 => #Bit
+                    else => it
+                }
+                case #Bit when {
+                    case pulse == 0w11 && bitnum == 7w3 => #Stop
+                    else => it
+                }
+                case #Stop when {
+                    case pulse == 0w11 => #Idle
+                    else => it
+                }
+            }
         }
     }
 
@@ -245,7 +271,6 @@ mod UartReceiver {
                     case it == 0w11 => 0w11
                     else => it - 1
                 }
-                else => it
             }
         }
     }

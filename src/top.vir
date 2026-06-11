@@ -39,7 +39,7 @@ export mod Top {
     }
 
     //> CPU core instance.
-    mod cpu of cpu::Cpu {}
+    mod cpu of cpu::Cpu
 
     //> Wishbone address decoder.
     //>

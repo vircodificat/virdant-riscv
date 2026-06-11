@@ -96,11 +96,21 @@ mod SpiFlash {
     reg state : State on clock {
         it <= when {
             case reset => #Idle
-            case state == #Idle && read_enable => #Send
-            case state == #Send && buffer_index == 31w5 && !half_clock => #Recv
-            case state == #Recv && buffer_index == 31w5 && !half_clock => #Done
-            case state == #Done => #Idle
-            else => it
+            else match it {
+                case #Idle when {
+                    case read_enable => #Send
+                    else => it
+                }
+                case #Send when {
+                    case buffer_index == 31w5 && !half_clock => #Recv
+                    else => it
+                }
+                case #Recv when {
+                    case buffer_index == 31w5 && !half_clock => #Done
+                    else => it
+                }
+                case #Done => #Idle
+            }
         }
     }
 

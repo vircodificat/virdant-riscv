@@ -112,6 +112,8 @@ mod Cpu {
 
     //> Instruction decoder sub-module.
     mod idecode of idecode::IDecode {
+        unused it.illegal_opcode
+
         it.instr := instr
 
         control.funct3  := it.funct3

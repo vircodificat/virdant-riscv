@@ -15,9 +15,33 @@ mod Alu {
     //> Second ALU operand (typically rs2 or immediate).
     incoming b : Word[32]
     //> ALU result.
-    outgoing z : Word[32]
-
-    //> ALU operation selector (see `opcode::AluOpcode`).
+    outgoing z : Word[32] {
+        it := match op {
+            case #Add => adder
+            case #Sub => adder
+            case #And => a & b
+            case #Or  => a | b
+            case #Xor => a ^ b
+            case #Eq  => zext(a == b)
+            case #Neq => zext(a != b)
+            case #Lt when {
+                case a[31] ^ b[31] => zext(a[31])
+                else => zext(a < b)
+            }
+            case #Gte when {
+                case a[31] ^ b[31] => zext(b[31])
+                else => zext(a >= b)
+            }
+            case #Zero => 0
+            case #Ltu => zext(a < b)
+            case #Gteu => zext(a >= b)
+            case #Clear => a & (~b)
+            case #PassA => a
+            case #Sll => shifter.z
+            case #Srl => shifter.z
+            case #Sra => shifter.z
+        }
+    }
     incoming op : opcode::AluOpcode
 
     //> Barrel shifter sub-module used for SLL, SRL, and SRA.
@@ -41,31 +65,7 @@ mod Alu {
     }
 
     // Main ALU output: result selected by `op`.
-    z := match op {
-        case #Add => adder
-        case #Sub => adder
-        case #And => a & b
-        case #Or  => a | b
-        case #Xor => a ^ b
-        case #Eq  => zext(a == b)
-        case #Neq => zext(a != b)
-        case #Lt when {
-            case a[31] ^ b[31] => zext(a[31])
-            else => zext(a < b)
-        }
-        case #Gte when {
-            case a[31] ^ b[31] => zext(b[31])
-            else => zext(a >= b)
-        }
-        case #Zero => 0
-        case #Ltu => zext(a < b)
-        case #Gteu => zext(a >= b)
-        case #Clear => a & (~b)
-        case #PassA => a
-        case #Sll => shifter.z
-        case #Srl => shifter.z
-        case #Sra => shifter.z
-    }
+
 }
 
 //> Barrel-shift direction selector.
@@ -92,9 +92,13 @@ mod Shifter {
     //> Shift amount (0–31).
     incoming amount : Word[5]
     //> Shifted result.
-    outgoing z : Word[32]
-
-    // TODO; This could be written with let blocks.
+    outgoing z : Word[32] {
+        it := match dir {
+            case #ShiftLeftLogical => sll_16
+            case #ShiftRightLogical => srl_16
+            case #ShiftRightArithmetic => sra_16
+        }
+    }
 
     //> Stage 1: shift left by 1.
     wire sll_1 : Word[32]
@@ -202,9 +206,5 @@ mod Shifter {
     }
 
     // Final shifted output selected by `dir`.
-    z := match dir {
-        case #ShiftLeftLogical => sll_16
-        case #ShiftRightLogical => srl_16
-        case #ShiftRightArithmetic => sra_16
-    }
+
 }
