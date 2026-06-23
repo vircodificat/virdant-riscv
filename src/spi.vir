@@ -6,9 +6,9 @@ import wishbone
 //> using the standard 0x03 (READ) command, and a Spi socket definition.
 
 //> SPI flash controller FSM state.
-enum type State width 4 {
+enum type State {
     //> Idle: waiting for a read request.
-    Idle = 1
+    Idle = 1w4
     //> Send: transmitting the command and address to the flash.
     Send = 2
     //> Recv: receiving data from the flash.

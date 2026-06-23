@@ -71,9 +71,9 @@ mod Alu {
 //> Barrel-shift direction selector.
 //>
 //> Specifies the direction for the Shifter module.
-enum type ShiftDirection width 3 {
+enum type ShiftDirection {
     //> Shift left logical (SLL).
-    ShiftLeftLogical     = 0b001
+    ShiftLeftLogical     = 0b001w3
     //> Shift right logical (SRL).
     ShiftRightLogical    = 0b010
     //> Shift right arithmetic (SRA, sign-extending).

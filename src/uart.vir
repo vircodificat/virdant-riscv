@@ -89,8 +89,8 @@ mod WbUart {
 //> - `data_valid` : high for one cycle when `data` is valid
 
 //> FSM states shared by UartSender and UartReceiver.
-enum type UartFsmState width 2 {
-    Idle  = 0b00
+enum type UartFsmState {
+    Idle  = 0b00w2
     Start = 0b01
     Bit   = 0b10
     Stop  = 0b11

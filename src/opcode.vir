@@ -7,9 +7,9 @@
 //> RISC-V 7-bit primary opcodes.
 //>
 //> These correspond to the `opcode` field (bits [6:0]) of a 32-bit instruction.
-enum type Opcode width 7 {
+enum type Opcode {
     //> Branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU).
-    BRANCH = 99
+    BRANCH = 99w7
     //> Jump-and-link register (JALR).
     JALR   = 103
     //> Jump-and-link (JAL).
@@ -37,9 +37,9 @@ enum type Opcode width 7 {
 //> These are internal micro-opcodes that the control unit emits to drive
 //> the ALU and shifter. They encode arithmetic, logical, comparison,
 //> and shift operations.
-enum type AluOpcode width 8 {
+enum type AluOpcode {
     //> Zero result (used for JAL/JALR address generation).
-    Zero  = 0
+    Zero  = 0w8
     //> Addition (ADD, ADDI, AUIPC, LOAD/STORE address).
     Add   = 1
     //> Subtraction (SUB).
@@ -78,9 +78,9 @@ enum type AluOpcode width 8 {
 //>
 //> The core uses a 5-stage finite-state machine: Reset, Fetching, Execute,
 //> Writeback, and Breaked (halted on EBREAK).
-enum type CpuStage width 5 {
+enum type CpuStage {
     //> Power-on reset state.
-    Reset     = 0b00001
+    Reset     = 0b00001w5
     //> Instruction fetch from memory.
     Fetching  = 0b00010
     //> Execute the decoded instruction.
@@ -94,9 +94,9 @@ enum type CpuStage width 5 {
 //> RISC-V machine-level CSR addresses.
 //>
 //> Only the CSRs actually referenced by the core are listed.
-enum type Csr width 12 {
+enum type Csr {
     //> Machine status register.
-    MStatus   = 0x300
+    MStatus   = 0x300w12
     //> Machine ISA register.
     MIsa      = 0x301
     //> Machine interrupt-enable register.
@@ -126,9 +126,9 @@ enum type Csr width 12 {
 //> System-call and machine-mode exception/cause mnemonics.
 //>
 //> Mapped from the `funct12` field of SYSTEM instructions.
-enum type System width 12 {
+enum type System {
     //> Environment call (ECALL).
-    Ecall  = 0x000
+    Ecall  = 0x000w12
     //> Breakpoint (EBREAK).
     Ebreak = 0x001
     //> Wait for interrupt (WFI).

@@ -47,11 +47,13 @@ mod Cpu {
     reg pc : Word[32] on clock {
         it <= when {
             case reset => 0x80000000w32
-            case stage == #Writeback && idecode.opcode == #JALR => rf.rs1_out + idecode.imm
-            case stage == #Writeback && control.take_branch => it + idecode.imm
-            case stage == #Writeback && idecode.opcode == #JAL => it + idecode.imm
-            case stage == #Writeback && control.is_mret => csrs.data_out
-            case stage == #Writeback => it + 4
+            case stage == #Writeback when {
+                case idecode.opcode == #JALR => rf.rs1_out + idecode.imm
+                case control.take_branch => it + idecode.imm
+                case idecode.opcode == #JAL => it + idecode.imm
+                case control.is_mret => csrs.data_out
+                else => it + 4
+            }
             else => it
         }
     }
@@ -96,14 +98,13 @@ mod Cpu {
                     case #Execute {
                         it <= #Writeback
                     }
-                    case #Writeback {
-                        it <= when {
-                            case control.is_break => #Breaked
-                            else => #Fetching
+                    case #Writeback when {
+                        case control.is_break {
+                            it <= #Breaked
                         }
-                    }
-                    case #Breaked {
-                        it <= #Breaked
+                        else {
+                            it <= #Fetching
+                        }
                     }
                 }
             }
@@ -206,13 +207,13 @@ mod Cpu {
         it.data_in := rf.rs1_out
     }
 
-    //> Halted indicator: asserted when the CPU has hit EBREAK.
-    outgoing is_breaked : Bit {
-        it := stage == #Breaked
-    }
-
     //> Return code (register a0 value at the time of EBREAK).
     outgoing return_code : Word[32] {
         it := rf.rs2_out
+    }
+
+    //> Halted indicator: asserted when the CPU is in the Breaked state.
+    outgoing is_breaked : Bit {
+        it := stage == #Breaked
     }
 }
