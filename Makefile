@@ -1,3 +1,5 @@
+VIR ?= vir
+
 ASM=loop.s
 HEX=build/$(ASM:.s=.hex)
 VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
@@ -29,7 +31,7 @@ build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES) build/
 build: build/
 
 build/: $(VIR_SOURCES)
-	vir build
+	$(VIR) build
 	cp ext/* build/
 
 build/%.hex: %.s
@@ -70,7 +72,7 @@ scoreboard: build/sim
 	./scoreboard.py
 
 synth: $(VIR_SOURCES) $(SV_SOURCES)
-	vir build
+	$(VIR) build
 	cp ext/* build/
 	yosys -p "synth_ice40 -top Top -json build/top.json" build/*.sv 2>&1 | tee build/yosys.log
 	nextpnr-ice40 --up5k --package sg48 \
