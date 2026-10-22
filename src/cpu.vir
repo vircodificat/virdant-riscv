@@ -42,11 +42,13 @@ mod Cpu {
 
     //> Program counter register.
     //>
-    //> Reset to 0x80000000. Updated in the Writeback stage: sequential
-    //> increments by 4, or target address for branches, JAL, JALR, MRET.
+    //> Reset to 0x20000000: execute-in-place from the SPI flash (the
+    //> virt platform maps flash offset 0 there).  Updated in the
+    //> Writeback stage: sequential increments by 4, or target address
+    //> for branches, JAL, JALR, MRET.
     reg pc : Word[32] on clock {
         it <= when {
-            case reset => 0x80000000w32
+            case reset => 0x20000000w32
             case stage == #Writeback when {
                 case idecode.opcode == #JALR => rf.rs1_out + idecode.imm
                 case control.take_branch => it + idecode.imm

@@ -27,6 +27,16 @@
 
 #define DHRYSTONES_PER_DMIPS 1757
 
+/* Read the machine cycle counter (CSR 0xC00; the Csrs ext module
+ * implements it as a free-running counter).  Encoded directly because
+ * `csrrs` needs the Zicsr extension in the assembler's -march string. */
+static long rdcycle (void)
+{
+  register long v asm ("a0");
+  __asm__ volatile (".word 0xC0002573" : "=r" (v)); /* csrrs a0, 0xC00, x0 */
+  return v;
+}
+
 /* Global Variables: */
 
 Rec_Pointer     Ptr_Glob,
@@ -38,15 +48,15 @@ char            Ch_1_Glob,
 int             Arr_1_Glob [50];
 int             Arr_2_Glob [50] [50];
 
-/* variables for time measurement: */
-
-struct timeval  time_info;
+/* variables for time measurement:
+ *
+ * The "timer" is the machine cycle counter (CSR 0xC00), so all times
+ * are CPU cycle counts and the results below are computed with integer
+ * arithmetic at the simulated clock rate (48 MHz on the virt platform). */
 
 long            Begin_Time,
                 End_Time,
                 User_Time;
-float           Microseconds,
-                Dhrystones_Per_Second;
 
 /* end of variables for time measurement */
 
@@ -107,8 +117,7 @@ int main ()
   /* Start timer */
   /***************/
 
-  gettimeofday(&time_info, 0);
-  Begin_Time = time_info.tv_sec * 1000000L + time_info.tv_usec;
+  Begin_Time = rdcycle ();
 
   for (Run_Index = 1; Run_Index <= Number_Of_Runs; ++Run_Index)
   {
@@ -160,8 +169,7 @@ int main ()
   /* Stop timer */
   /**************/
 
-  gettimeofday(&time_info, 0);
-  End_Time = time_info.tv_sec * 1000000L + time_info.tv_usec;
+  End_Time = rdcycle ();
 
   printf ("Execution ends\n");
   printf ("\n");
@@ -216,10 +224,10 @@ int main ()
   printf ("        should be:   DHRYSTONE PROGRAM, 2'ND STRING\n");
   printf ("\n");
 
-  User_Time = End_Time - Begin_Time;
+  User_Time = End_Time - Begin_Time;   /* elapsed CPU cycles */
 
-  /* Measurements should last at least 2 seconds */
-  if (User_Time < 2000000)
+  /* Keep the measurement well clear of startup/timer noise. */
+  if (User_Time < 1000000)
   {
     printf ("Measured time too small to obtain meaningful results\n");
     printf ("Please increase number of runs\n");
@@ -227,15 +235,18 @@ int main ()
   }
   else
   {
-    Microseconds = (float) User_Time / (float) Number_Of_Runs;
-    Dhrystones_Per_Second = (float) Number_Of_Runs * 1000000 / (float) User_Time;
+    unsigned long long Clock_Hz = 48000000;   /* virt platform clock */
+    unsigned long long Dhrystones_Per_Second
+        = (unsigned long long) Number_Of_Runs * Clock_Hz / User_Time;
+    unsigned long long Dmips_X100
+        = Dhrystones_Per_Second * 100 / DHRYSTONES_PER_DMIPS;
 
-    printf ("Nanoseconds for one run through Dhrystone: %-7.1f \n",
-            Microseconds * 1000);
-    printf ("            Million Dhrystones per Second: %-7.3f \n",
-            Dhrystones_Per_Second / 1000000);
-    printf ("                                    DMIPS: %-7.1f \n",
-            Dhrystones_Per_Second / DHRYSTONES_PER_DMIPS);
+    printf ("Cycles for one run through Dhrystone: %d \n",
+            (int) (User_Time / Number_Of_Runs));
+    printf ("            Dhrystones per second (at 48 MHz): %d \n",
+            (int) Dhrystones_Per_Second);
+    printf ("                                    DMIPS: %d.%02d \n",
+            (int) (Dmips_X100 / 100), (int) (Dmips_X100 % 100));
     printf ("\n");
   }
   return 0;

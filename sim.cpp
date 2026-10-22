@@ -1,4 +1,4 @@
-#include "VTop.h"
+#include "Vvirt.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 #include <string>
@@ -27,11 +27,11 @@ extern "C" void sigint_handler(int /*sig*/) {
 }
 
 // Include the internal headers for direct memory access
-#include "VTop_Top.h"
-#include "VTop_cpu__03a__03aCpu.h"
-#include "VTop_mem__03a__03aWbMem.h"
-#include "VTop_mem__03a__03aMem.h"
-#include "VTop_rf__03a__03aRf.h"
+#include "Vvirt_Top.h"
+#include "Vvirt_cpu__03a__03aCpu.h"
+#include "Vvirt_mem__03a__03aWbMem.h"
+#include "Vvirt_mem__03a__03aMem.h"
+#include "Vvirt_rf__03a__03aRf.h"
 
 // ELF parsing
 #include <libelf.h>
@@ -47,7 +47,7 @@ double sc_time_stamp() {
     return main_time;
 }
 
-void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull, bool check_uart = false) {
+void tick(Vvirt *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull, bool check_uart = false) {
     // Trace the Fetching-stage state before the posedge
     bool do_trace = (cycle < 4);
     if (do_trace) {
@@ -124,7 +124,7 @@ void tick(VTop *top, VerilatedVcdC* tfp, uint64_t cycle = ~0ull, bool check_uart
     if (tfp) tfp->dump(main_time);
 }
 
-void reset(VTop *top, VerilatedVcdC* tfp) {
+void reset(Vvirt *top, VerilatedVcdC* tfp) {
     top->reset = 1;
     top->eval();
     tick(top, tfp);
@@ -134,7 +134,7 @@ void reset(VTop *top, VerilatedVcdC* tfp) {
     tick(top, tfp);
 }
 
-void load_elf(const char* elf_path, VTop_mem__03a__03aMem* mem_module) {
+void load_elf(const char* elf_path, Vvirt_mem__03a__03aMem* mem_module) {
     cout << "Loading ELF file: " << elf_path << endl;
 
     // Open the ELF file
@@ -324,7 +324,7 @@ int main(int argc, char** argv) {
     // Pass remaining arguments to Verilator
     Verilated::commandArgs(argc, argv);
 
-    VTop* top = new VTop;
+    Vvirt* top = new Vvirt;
 
     // Hold uart.rx high (idle) from the start so the UART receiver
     // does not falsely detect a start bit from the floating input.

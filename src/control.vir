@@ -273,9 +273,16 @@ mod Control {
     }
 
     //> Break instruction detected (ECALL or EBREAK).
+    //>
+    //> Only when funct3 == 0b000: CSR instructions (funct3 != 0) share the
+    //> SYSTEM opcode, and their funct12 must not be decoded as a system op
+    //> (dontcare would collide with #Ecall = 0x000 and halt the CPU).
     outgoing is_break : Bit {
         it := match opcode {
-            case #SYSTEM => system_op.op == #Ecall || system_op.op == #Ebreak
+            case #SYSTEM when {
+                case funct3 == 0b000 => system_op.op == #Ecall || system_op.op == #Ebreak
+                else => false
+            }
             else => false
         }
     }

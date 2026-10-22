@@ -3,3 +3,6 @@ build/
 *.hex
 riscv-tests/
 trace/
+__pycache__/
+*.flash
+*.elf

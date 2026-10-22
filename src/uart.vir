@@ -65,8 +65,8 @@ mod WbUart {
     }
 }
 
-//> UART transmitter (UartSender) and receiver (UartReceiver) at ~9600 baud
-//> (divisor = 1250 for a 12 MHz clock).
+//> UART transmitter (UartSender) and receiver (UartReceiver) at 115200 baud
+//> (divisor = 417 for a 48 MHz clock; 48e6 / 115200 ≈ 416.67).
 //>
 //> Both modules use compact encoded-state machines and shift registers
 //> to minimise hardware area.
@@ -180,15 +180,15 @@ mod UartSender {
         }
     }
 
-    // --- baud-rate pulse countdown (1250 ≈ 12 MHz / 9600) ---
+    // --- baud-rate pulse countdown (417 ≈ 48 MHz / 115200) ---
     reg pulse : Word[11] on clock {
         it <= when {
             case reset => 0w11
-            case state == #Idle && data_valid => 1250w11
+            case state == #Idle && data_valid => 417w11
             case state == #Idle => 0w11
-            case state == #Start && it == 0w11 => 1250w11
+            case state == #Start && it == 0w11 => 417w11
             case state == #Start => it - 1
-            case state == #Bit && it == 0w11 => 1250w11
+            case state == #Bit && it == 0w11 => 417w11
             case state == #Bit => it - 1
             case state == #Stop && it == 0w11 => 0w11
             case state == #Stop => it - 1
@@ -244,26 +244,26 @@ mod UartReceiver {
     }
 
     // --- baud-rate pulse countdown ---
-    // In the Idle state the start-bit detector uses a half-bit timeout (625
-    // ticks); afterwards the full bit period is 1250 ticks.  The final bit
-    // uses a slightly shorter period (1150 ticks) to avoid sampling past
+    // In the Idle state the start-bit detector uses a half-bit timeout (208
+    // ticks); afterwards the full bit period is 417 ticks.  The final bit
+    // uses a slightly shorter period (384 ticks) to avoid sampling past
     // the stop-bit edge.
     reg pulse : Word[11] on clock {
         it <= when {
             case reset => 0w11
             else match state {
                 case #Idle when {
-                    case uart_rx == false => 625w11
+                    case uart_rx == false => 208w11
                     else => 0w11
                 }
                 case #Start when {
-                    case it == 0w11 => 1250w11
+                    case it == 0w11 => 417w11
                     else => it - 1
                 }
                 case #Bit when {
                     case it == 0w11 when {
-                        case bitnum < 7w3 => 1250w11
-                        else => 1150w11
+                        case bitnum < 7w3 => 417w11
+                        else => 384w11
                     }
                     else => it - 1
                 }

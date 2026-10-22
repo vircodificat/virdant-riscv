@@ -48,7 +48,11 @@ mod WbSpiFlash {
         it.clock := clock
         it.reset := reset
 
-        it.addr := wb.adr[24..0]
+        // Word-aligned read address: the flash streams 4 bytes from the
+        // given address, and the master's lane select (wb.adr[1:0]) assumes
+        // the returned word starts at the word boundary — same convention
+        // as Mem (addr[15:2]).  Mask the low 2 bits accordingly.
+        it.addr := word(wb.adr[24..2], 0w2)
         it.read_enable := wb.cyc && wb.stb
 
         wb.dat_rd := it.read_data
@@ -116,7 +120,7 @@ mod SpiFlash {
 
     reg buffer : Word[32] on clock {
         it <= when {
-            case !half_clock && state == #Idle => word(0x03w8, addr[24..0])
+            case read_enable && state == #Idle => word(0x03w8, addr[24..0])
             case !half_clock && state == #Send => word(it[31..0], 0w1)
             case !half_clock && state == #Recv => word(it[31..0], spi.di)
             case !half_clock => 0

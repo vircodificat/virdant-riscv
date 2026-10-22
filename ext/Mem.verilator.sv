@@ -43,9 +43,16 @@ module \mem::Csrs (
 ); /* verilator public_module */
     reg [31:0] mem[4096] /* verilator public */;
 
-    assign data_out = mem[addr];
+    // mcycle/cycle (0xB00/0xC00) read as a free-running cycle counter so
+    // software can time itself (used by the Dhrystone port).  Writes to
+    // those addresses land in the RAM and are ignored on read.
+    reg [31:0] cycle_counter;
+
+    assign data_out = (addr == 12'hB00 || addr == 12'hC00)
+                    ? cycle_counter : mem[addr];
 
     always @(posedge clock) begin
+        cycle_counter <= cycle_counter + 32'd1;
         if (write) begin
             mem[addr] = data_in;
 //            $display("CSR: 0x%x <= [0x%x] <= 0x%x", data_out, addr, data_in);
@@ -54,6 +61,7 @@ module \mem::Csrs (
 
     initial begin
         mem[12'hF14] = 32'd0;
+        cycle_counter = 32'd0;
     end
 
 endmodule

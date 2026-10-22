@@ -111,7 +111,17 @@ module \mem::Csrs (
         .DATAOUT   (hi_out)
     );
 
-    assign data_out = {hi_out, lo_out};
+    // mcycle/cycle (0xB00/0xC00) read as a free-running cycle counter so
+    // software can time itself (used by the Dhrystone port).  Writes to
+    // those addresses land in the SPRAM and are ignored on read.
+    reg [31:0] cycle_counter;
+
+    always @(posedge clock) begin
+        cycle_counter <= cycle_counter + 32'd1;
+    end
+
+    assign data_out = (addr == 12'hB00 || addr == 12'hC00)
+                    ? cycle_counter : {hi_out, lo_out};
 
 endmodule
 
