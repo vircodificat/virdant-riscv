@@ -5,7 +5,7 @@ socket Uart {
     soci rx : Bit
 }
 
-mod WbUart {
+pub mod WbUart {
     incoming clock : Clock
     incoming reset : Reset
 
@@ -96,7 +96,7 @@ enum type UartFsmState {
     Stop  = 0b11
 }
 
-export mod ExampleTop {
+mod ExampleTop {
     incoming clock : Clock // 12MHz
     incoming reset : Bit
     outgoing fin   : Bit {

@@ -32,7 +32,7 @@ socket Spi {
     soci di : Bit
 }
 
-mod WbSpiFlash {
+pub mod WbSpiFlash {
     incoming clock : Clock
     incoming reset : Reset
 

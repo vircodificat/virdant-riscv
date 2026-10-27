@@ -4,7 +4,7 @@
 //> function fields, and the immediate value (sign-extended or zero-extended
 //> as appropriate for each instruction format).
 
-mod IDecode {
+pub mod IDecode {
     //> The 32-bit instruction word fetched from memory.
     incoming instr : Word[32]
 

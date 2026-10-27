@@ -9,7 +9,7 @@
 //> Performs arithmetic (add, sub), logical (and, or, xor, clear),
 //> comparison (eq, neq, lt, gte, ltu, gteu), zero, pass-through,
 //> and shift operations as directed by `AluOpcode`.
-mod Alu {
+pub mod Alu {
     //> First ALU operand (typically rs1, PC, or CSR data).
     incoming a : Word[32]
     //> Second ALU operand (typically rs2 or immediate).

@@ -2,7 +2,7 @@
 //>
 //> Standard Wishbone B.4 signals for a 32-bit data bus.
 //> All signals are from the master's perspective.
-socket Wishbone {
+pub socket Wishbone {
     //> Cycle start: the master asserts this for the duration of a bus transaction.
     cosi cyc : Bit
     //> Strobe: the master asserts this during the data phase.
@@ -49,7 +49,7 @@ union type SelState {
     Server2()
 }
 
-mod WbMux13 {
+pub mod WbMux13 {
     client socket server_0 of Wishbone
     client socket server_1 of Wishbone
     client socket server_2 of Wishbone

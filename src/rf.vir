@@ -6,7 +6,7 @@
 //> This is an external (`ext`) module because it is implemented by a
 //> separate hardware primitive (e.g., FPGA block RAM or a synthesized
 //> register array).
-ext mod Rf {
+pub ext mod Rf {
     //> Global clock.
     incoming clock : Clock
 

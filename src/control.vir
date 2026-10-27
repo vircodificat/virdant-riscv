@@ -8,7 +8,7 @@
 import opcode
 
 //> ALU A-operand source mux selector.
-enum type AluSourceA {
+pub enum type AluSourceA {
     //> Operand A comes from register file port rs1.
     Rs1 = 0b001w3
     //> Operand A comes from the program counter.
@@ -18,7 +18,7 @@ enum type AluSourceA {
 }
 
 //> ALU B-operand source mux selector.
-enum type AluSourceB {
+pub enum type AluSourceB {
     //> Operand B comes from register file port rs2.
     Rs2 = 0b001w3
     //> Operand B comes from the decoded immediate.
@@ -28,7 +28,7 @@ enum type AluSourceB {
 }
 
 //> Register-file writeback data source mux selector.
-enum type RdSource {
+pub enum type RdSource {
     //> Writeback comes from memory read data.
     Mem       = 0b000001w6
     //> Writeback comes from the decoded immediate.
@@ -48,7 +48,7 @@ enum type RdSource {
 //> Decodes the instruction fields and generates all control signals for
 //> the datapath: ALU mux selects, register-file write enable, branch
 //> control, memory strobes, CSR access, and pipeline stall logic.
-mod Control {
+pub mod Control {
     //> Primary opcode from the instruction.
     incoming opcode : opcode::Opcode
     //> Function-3 field from the instruction.

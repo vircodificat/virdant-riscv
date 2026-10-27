@@ -109,7 +109,7 @@ mod Soc {
 }
 
 //> Top module: the outermost entity of the design.
-export mod Top for virt::Virt {
+pub mod Top for virt::Virt {
     incoming clock : Clock { soc.clock := it }
 
     //> UART pins.

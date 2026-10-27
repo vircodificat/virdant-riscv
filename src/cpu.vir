@@ -9,7 +9,7 @@ import wishbone
 //> A RISC-V CPU core
 //>
 //> 3-stage, non-pipelined RV32I processor
-mod Cpu {
+pub mod Cpu {
     incoming clock : Clock
     incoming reset : Reset
 

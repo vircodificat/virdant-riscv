@@ -7,7 +7,7 @@
 //> RISC-V 7-bit primary opcodes.
 //>
 //> These correspond to the `opcode` field (bits [6:0]) of a 32-bit instruction.
-enum type Opcode {
+pub enum type Opcode {
     //> Branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU).
     BRANCH = 99w7
     //> Jump-and-link register (JALR).
@@ -37,7 +37,7 @@ enum type Opcode {
 //> These are internal micro-opcodes that the control unit emits to drive
 //> the ALU and shifter. They encode arithmetic, logical, comparison,
 //> and shift operations.
-enum type AluOpcode {
+pub enum type AluOpcode {
     //> Zero result (used for JAL/JALR address generation).
     Zero  = 0w8
     //> Addition (ADD, ADDI, AUIPC, LOAD/STORE address).
@@ -78,7 +78,7 @@ enum type AluOpcode {
 //>
 //> The core uses a 5-stage finite-state machine: Reset, Fetching, Execute,
 //> Writeback, and Breaked (halted on EBREAK).
-enum type CpuStage {
+pub enum type CpuStage {
     //> Power-on reset state.
     Reset     = 0b00001w5
     //> Instruction fetch from memory.
@@ -126,7 +126,7 @@ enum type Csr {
 //> System-call and machine-mode exception/cause mnemonics.
 //>
 //> Mapped from the `funct12` field of SYSTEM instructions.
-enum type System {
+pub enum type System {
     //> Environment call (ECALL).
     Ecall  = 0x000w12
     //> Breakpoint (EBREAK).
