@@ -25,7 +25,7 @@ TestResult = namedtuple('TestResult', ['name', 'status'])
 # Flash read budget: one boot copy (~2M cycles over SPI) plus the test
 # itself running from RAM.  The simulator exits early on the tests' ecall.
 CYCLES = 20_000_000
-TIMEOUT = 30  # seconds (wall) per test
+TIMEOUT = 300  # seconds (wall) per test
 
 
 def run_test(test_path, vcd_path=None, timeout=TIMEOUT):
@@ -41,7 +41,7 @@ def run_test(test_path, vcd_path=None, timeout=TIMEOUT):
              "-o", str(flash)],
             check=True, capture_output=True,
         )
-        cmd = ["./build/Top", "--flash", str(flash), "--cycles", str(CYCLES)]
+        cmd = ["vir", "run", "--flash", str(flash), "--fps-no-cap", "--cycles", str(CYCLES)]
         if vcd_path is not None:
             cmd += ["--vcd", str(vcd_path), "--trace"]
         result = subprocess.run(
