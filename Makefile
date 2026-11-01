@@ -79,6 +79,40 @@ dhrystone: build/Top dhrystone.flash
 
 .PHONY: dhrystone
 
+# ── Flash images (flash/*.bin) ───────────────────────────────────────
+
+# Build every demo's flash image into flash/ as a .bin file.
+FLASHDIR := flash
+
+flash-images: $(FLASHDIR)/echo.bin \
+	$(FLASHDIR)/mandelbrot.bin \
+	$(FLASHDIR)/donut.bin \
+	$(FLASHDIR)/dhrystone.bin \
+	$(FLASHDIR)/snake.bin
+
+$(FLASHDIR):
+	mkdir -p $(FLASHDIR)
+
+$(FLASHDIR)/echo.bin: sw/uart_demo/echo.elf build/boot.bin | $(FLASHDIR)
+	./elf2flash.py $< --boot build/boot.bin -o $@
+
+$(FLASHDIR)/mandelbrot.bin: sw/mandelbrot/mandelbrot.elf build/boot.bin | $(FLASHDIR)
+	./elf2flash.py $< --boot build/boot.bin -o $@
+
+$(FLASHDIR)/donut.bin: sw/donut/donut.elf build/boot.bin | $(FLASHDIR)
+	./elf2flash.py $< --boot build/boot.bin -o $@
+
+$(FLASHDIR)/dhrystone.bin: sw/dhrystone/dhrystone.elf build/boot.bin | $(FLASHDIR)
+	./elf2flash.py $< --boot build/boot.bin -o $@
+
+sw/snake/snake.elf:
+	$(MAKE) -C sw/snake snake.elf
+
+$(FLASHDIR)/snake.bin: sw/snake/snake.elf build/boot.bin | $(FLASHDIR)
+	./elf2flash.py $< --boot build/boot.bin -o $@
+
+.PHONY: flash-images
+
 build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES) build/
 	verilator \
 		--sv \
@@ -168,6 +202,6 @@ synth: $(VIR_SOURCES) $(SV_SOURCES)
 		--asc build/top.asc 2>&1 | tee build/nextpnr-ice40.log
 
 clean:
-	rm -rf build/
+	rm -rf build/ flash/
 	rm -f out.vcd echo.flash
 	make -C riscv-tests clean || exit 0

@@ -5,4 +5,5 @@ riscv-tests/
 trace/
 __pycache__/
 *.flash
+flash/
 *.elf
