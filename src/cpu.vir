@@ -46,7 +46,7 @@ pub mod Cpu {
     //> virt platform maps flash offset 0 there).  Updated in the
     //> Writeback stage: sequential increments by 4, or target address
     //> for branches, JAL, JALR, MRET.
-    reg pc : Word[32] on clock {
+    reg pc : Word[32] {
         it <= when {
             case reset => 0x20000000w32
             case stage == #Writeback when {
@@ -61,7 +61,7 @@ pub mod Cpu {
     }
 
     //> Instruction word register. Fetched from memory in the Fetch stage.
-    reg instr : Word[32] on clock {
+    reg instr : Word[32] {
         it <= when {
             case !control.stall && stage == #Fetching => mem.dat_rd
             else => it
@@ -69,7 +69,7 @@ pub mod Cpu {
     }
 
     //> Memory read-data buffer. Captured from the Wishbone bus in the Execute stage.
-    reg mem_buffer : Word[32] on clock {
+    reg mem_buffer : Word[32] {
         it <= when {
             case !control.stall && stage == #Execute => mem.dat_rd
             else => it
@@ -84,7 +84,7 @@ pub mod Cpu {
     //> Note: mem.adr is now driven combinatorially in the socket declaration,
     //> NOT inside this block, to avoid a deadlock where stall gates the
     //> address, which prevents ack, which keeps stall asserted.
-    reg stage : opcode::CpuStage on clock {
+    reg stage : opcode::CpuStage {
         when {
             case reset {
                 it <= #Reset

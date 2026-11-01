@@ -97,7 +97,7 @@ mod SpiFlash {
         it := state == #Done
     }
 
-    reg state : State on clock {
+    reg state : State {
         it <= when {
             case reset => #Idle
             else match it {
@@ -118,7 +118,7 @@ mod SpiFlash {
         }
     }
 
-    reg buffer : Word[32] on clock {
+    reg buffer : Word[32] {
         it <= when {
             case read_enable && state == #Idle => word(0x03w8, addr[24..0])
             case !half_clock && state == #Send => word(it[31..0], 0w1)
@@ -128,7 +128,7 @@ mod SpiFlash {
         }
     }
 
-    reg buffer_index : Word[5] on clock {
+    reg buffer_index : Word[5] {
         it <= when {
             case !half_clock && state == #Idle => 0
             case !half_clock && state == #Send && it != 31w5 => it + 1
@@ -139,7 +139,7 @@ mod SpiFlash {
         }
     }
 
-    reg half_clock : Bit on clock {
+    reg half_clock : Bit {
         it <= when {
             case reset => false
             case state == #Idle => true
@@ -147,7 +147,7 @@ mod SpiFlash {
         }
     }
 
-    reg spi_clk_reg : Bit on clock {
+    reg spi_clk_reg : Bit {
         spi.clk := it
         it <= !it
     }
