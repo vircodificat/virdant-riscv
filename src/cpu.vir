@@ -6,6 +6,11 @@ import control
 import idecode
 import wishbone
 
+pub enum type Halt {
+    Fault
+    Breaked
+}
+
 //> A RISC-V CPU core
 //>
 //> 3-stage, non-pipelined RV32I processor
@@ -115,8 +120,6 @@ pub mod Cpu {
 
     //> Instruction decoder sub-module.
     mod idecode of idecode::IDecode {
-        unused it.illegal_opcode
-
         it.instr := instr
 
         control.funct3  := it.funct3
@@ -215,7 +218,12 @@ pub mod Cpu {
     }
 
     //> Halted indicator: asserted when the CPU is in the Breaked state.
-    outgoing is_breaked : Bit {
-        it := stage == #Breaked
+    outgoing halt : Valid[Halt] {
+        it := when {
+            case stage == #Breaked => @Valid(#Breaked)
+            case idecode.illegal_opcode => @Valid(#Fault)
+            else => @Invalid()
+        }
+
     }
 }

@@ -45,9 +45,12 @@ mod Soc {
     //> convention is `a7=93; a0=<code>; ecall`), report a0 as the exit
     //> code (0 = success).
     outgoing exit : Valid[Word[8]] {
-        it := when {
-            case cpu.is_breaked => @Valid(cpu.return_code[8..0])
-            else => @Invalid()
+        it := match cpu.halt {
+            case @Invalid => @Invalid()
+            case @Valid(halt) match halt {
+                case #Fault => @Valid(1)
+                case #Breaked => @Valid(cpu.return_code[8..0])
+            }
         }
     }
 
