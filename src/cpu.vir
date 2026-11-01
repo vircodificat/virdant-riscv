@@ -81,10 +81,26 @@ pub mod Cpu {
         }
     }
 
+    //> Fault latch: set when an illegal instruction reaches Execute.
+    //> While set, the pipeline freezes in place (stage reg stops
+    //> advancing), so the faulting instruction is not re-executed and
+    //> cpu.halt holds @Valid(#Fault) until reset.
+    reg faulted : Bit {
+        when {
+            case reset {
+                it <= false
+            }
+            case stage == #Execute && idecode.illegal_opcode {
+                it <= true
+            }
+        }
+    }
+
     //> Pipeline stage state machine.
     //>
     //> Transitions: Reset -> Fetching -> Execute -> Writeback -> (Breaked | Fetching).
-    //> Stalls when `control.stall` is asserted.
+    //> Stalls when `control.stall` is asserted, or permanently once
+    //> `faulted` latches.
     //>
     //> Note: mem.adr is now driven combinatorially in the socket declaration,
     //> NOT inside this block, to avoid a deadlock where stall gates the
@@ -94,7 +110,7 @@ pub mod Cpu {
             case reset {
                 it <= #Reset
             }
-            case !control.stall {
+            case !control.stall && !faulted {
                 match it {
                     case #Reset {
                         it <= #Fetching
@@ -217,11 +233,15 @@ pub mod Cpu {
         it := rf.rs2_out
     }
 
-    //> Halted indicator: asserted when the CPU is in the Breaked state.
+    //> Halted indicator: asserted while the CPU is frozen on a fault
+    //> (illegal instruction reached Execute; held until reset), or
+    //> when the CPU is in the Breaked state (EBREAK).  A garbage
+    //> instruction word sitting in the instr register during a fetch
+    //> — e.g. while booting from slow SPI flash — is not reported.
     outgoing halt : Valid[Halt] {
         it := when {
+            case faulted => @Valid(#Fault)
             case stage == #Breaked => @Valid(#Breaked)
-            case idecode.illegal_opcode => @Valid(#Fault)
             else => @Invalid()
         }
 

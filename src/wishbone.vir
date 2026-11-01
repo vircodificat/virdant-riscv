@@ -108,3 +108,355 @@ pub mod WbMux13 {
         }
     }
 }
+
+//> 2-client × 3-server Wishbone crossbar.
+//>
+//> Each client is routed to a server by comparing the top 3 address
+//> bits, exactly as in WbMux13:
+//>
+//>   0x2 → server_0 (SPI,  0x2000_0000)
+//>   0x4 → server_1 (UART, 0x4000_0000)
+//>   0x8 → server_2 (RAM,  0x8000_0000)
+//>
+//> Each server has its own arbiter, so two clients may use two
+//> different servers in the same cycle.  When both clients request
+//> the same server, the arbiter serializes them using round-robin
+//> priority: completing a grant flips that server's priority for the
+//> next tie.
+//>
+//> Grants are registered: a server's arbiter latches
+//> @ServingClientN() when it accepts a request and returns to
+//> @Idle() when the granted client deasserts cyc.  Clients
+//> therefore see a one-cycle latency before ack, which is ordinary
+//> Wishbone wait-state behavior.
+pub mod WbCrossbar23 {
+    incoming clock : Clock
+    incoming reset : Reset
+
+    // ─── Address decode ──────────────────────────────────────────────
+    wire route_0 : SelState {
+        it := match client_0.adr[32..29] {
+            case 0b001 => @Server0()
+            case 0b010 => @Server1()
+            case 0b100 => @Server2()
+            else => dontcare
+        }
+    }
+
+    wire route_1 : SelState {
+        it := match client_1.adr[32..29] {
+            case 0b001 => @Server0()
+            case 0b010 => @Server1()
+            case 0b100 => @Server2()
+            else => dontcare
+        }
+    }
+
+    // ─── Requests ────────────────────────────────────────────────────
+    wire client_0_request_0 : Bit {
+        it := client_0.cyc && client_0.stb && route_0 == @Server0()
+    }
+    wire client_0_request_1 : Bit {
+        it := client_0.cyc && client_0.stb && route_0 == @Server1()
+    }
+    wire client_0_request_2 : Bit {
+        it := client_0.cyc && client_0.stb && route_0 == @Server2()
+    }
+
+    wire client_1_request_0 : Bit {
+        it := client_1.cyc && client_1.stb && route_1 == @Server0()
+    }
+    wire client_1_request_1 : Bit {
+        it := client_1.cyc && client_1.stb && route_1 == @Server1()
+    }
+    wire client_1_request_2 : Bit {
+        it := client_1.cyc && client_1.stb && route_1 == @Server2()
+    }
+
+    // ─── Per-server arbiters ─────────────────────────────────────────
+    // Registered grant state, one per server.
+    //
+    // NOTE: written with explicit `case <cond>` arms — a statement-level
+    // `else match` arm is silently dropped by the compiler, which left
+    // the arbiters stuck in @Idle() (no server ever saw cyc).
+    reg serving_0 : Serving {
+        when {
+            case reset {
+                it <= @Idle()
+            }
+            case serving_0 == @ServingClient0() && !client_0.cyc {
+                it <= @Idle()
+            }
+            case serving_0 == @ServingClient1() && !client_1.cyc {
+                it <= @Idle()
+            }
+            case serving_0 == @Idle() && client_0_request_0 && (priority_0 == @Client0First() || !client_1_request_0) {
+                it <= @ServingClient0()
+            }
+            case serving_0 == @Idle() && client_1_request_0 {
+                it <= @ServingClient1()
+            }
+        }
+    }
+
+    reg serving_1 : Serving {
+        when {
+            case reset {
+                it <= @Idle()
+            }
+            case serving_1 == @ServingClient0() && !client_0.cyc {
+                it <= @Idle()
+            }
+            case serving_1 == @ServingClient1() && !client_1.cyc {
+                it <= @Idle()
+            }
+            case serving_1 == @Idle() && client_0_request_1 && (priority_1 == @Client0First() || !client_1_request_1) {
+                it <= @ServingClient0()
+            }
+            case serving_1 == @Idle() && client_1_request_1 {
+                it <= @ServingClient1()
+            }
+        }
+    }
+
+    reg serving_2 : Serving {
+        when {
+            case reset {
+                it <= @Idle()
+            }
+            case serving_2 == @ServingClient0() && !client_0.cyc {
+                it <= @Idle()
+            }
+            case serving_2 == @ServingClient1() && !client_1.cyc {
+                it <= @Idle()
+            }
+            case serving_2 == @Idle() && client_0_request_2 && (priority_2 == @Client0First() || !client_1_request_2) {
+                it <= @ServingClient0()
+            }
+            case serving_2 == @Idle() && client_1_request_2 {
+                it <= @ServingClient1()
+            }
+        }
+    }
+
+    //> Grant release: the granted client has finished its transaction.
+    wire release_0 : Bit {
+        it := match serving_0 {
+            case @ServingClient0() => !client_0.cyc
+            case @ServingClient1() => !client_1.cyc
+            else => false
+        }
+    }
+    wire release_1 : Bit {
+        it := match serving_1 {
+            case @ServingClient0() => !client_0.cyc
+            case @ServingClient1() => !client_1.cyc
+            else => false
+        }
+    }
+    wire release_2 : Bit {
+        it := match serving_2 {
+            case @ServingClient0() => !client_0.cyc
+            case @ServingClient1() => !client_1.cyc
+            else => false
+        }
+    }
+
+    // Round-robin priority, one per server.  Flips on grant release so
+    // that a client cannot starve the other on a contended server.
+    reg priority_0 : Priority {
+        when {
+            case reset {
+                it <= @Client0First()
+            }
+            case release_0 {
+                it <= match it {
+                    case @Client0First() => @Client1First()
+                    else => @Client0First()
+                }
+            }
+        }
+    }
+
+    reg priority_1 : Priority {
+        when {
+            case reset {
+                it <= @Client0First()
+            }
+            case release_1 {
+                it <= match it {
+                    case @Client0First() => @Client1First()
+                    else => @Client0First()
+                }
+            }
+        }
+    }
+
+    reg priority_2 : Priority {
+        when {
+            case reset {
+                it <= @Client0First()
+            }
+            case release_2 {
+                it <= match it {
+                    case @Client0First() => @Client1First()
+                    else => @Client0First()
+                }
+            }
+        }
+    }
+
+    // ─── Grant wiring ────────────────────────────────────────────────
+    // Which server (if any) currently grants each client.  Drives the
+    // client-facing response muxes.
+    wire client_0_grant : SelState {
+        it := match word(serving_0 == @ServingClient0(), serving_1 == @ServingClient0(), serving_2 == @ServingClient0()) {
+            case 0b100w3 => @Server0()
+            case 0b010w3 => @Server1()
+            case 0b001w3 => @Server2()
+            else => dontcare
+        }
+    }
+
+    wire client_1_grant : SelState {
+        it := match word(serving_0 == @ServingClient1(), serving_1 == @ServingClient1(), serving_2 == @ServingClient1()) {
+            case 0b100w3 => @Server0()
+            case 0b010w3 => @Server1()
+            case 0b001w3 => @Server2()
+            else => dontcare
+        }
+    }
+
+    // ─── Server-facing drivers ───────────────────────────────────────
+    // Each server sees the signals of whichever client was granted to
+    // it; ungranted servers are idle.
+    client socket server_0 of Wishbone {
+        it.cyc    := match serving_0 {
+            case @ServingClient0() => client_0.cyc
+            case @ServingClient1() => client_1.cyc
+            else => false
+        }
+        it.stb    := match serving_0 {
+            case @ServingClient0() => client_0.stb
+            case @ServingClient1() => client_1.stb
+            else => false
+        }
+        it.we     := match serving_0 {
+            case @ServingClient0() => client_0.we
+            case @ServingClient1() => client_1.we
+            else => false
+        }
+        it.adr    := match serving_0 {
+            case @ServingClient0() => zext(client_0.adr[29..0])
+            case @ServingClient1() => zext(client_1.adr[29..0])
+            else => dontcare
+        }
+        it.sel    := match serving_0 {
+            case @ServingClient0() => client_0.sel
+            case @ServingClient1() => client_1.sel
+            else => dontcare
+        }
+        it.dat_wr := match serving_0 {
+            case @ServingClient0() => client_0.dat_wr
+            case @ServingClient1() => client_1.dat_wr
+            else => dontcare
+        }
+    }
+
+    client socket server_1 of Wishbone {
+        it.cyc    := match serving_1 {
+            case @ServingClient0() => client_0.cyc
+            case @ServingClient1() => client_1.cyc
+            else => false
+        }
+        it.stb    := match serving_1 {
+            case @ServingClient0() => client_0.stb
+            case @ServingClient1() => client_1.stb
+            else => false
+        }
+        it.we     := match serving_1 {
+            case @ServingClient0() => client_0.we
+            case @ServingClient1() => client_1.we
+            else => false
+        }
+        it.adr    := match serving_1 {
+            case @ServingClient0() => zext(client_0.adr[29..0])
+            case @ServingClient1() => zext(client_1.adr[29..0])
+            else => dontcare
+        }
+        it.sel    := match serving_1 {
+            case @ServingClient0() => client_0.sel
+            case @ServingClient1() => client_1.sel
+            else => dontcare
+        }
+        it.dat_wr := match serving_1 {
+            case @ServingClient0() => client_0.dat_wr
+            case @ServingClient1() => client_1.dat_wr
+            else => dontcare
+        }
+    }
+
+    client socket server_2 of Wishbone {
+        it.cyc    := match serving_2 {
+            case @ServingClient0() => client_0.cyc
+            case @ServingClient1() => client_1.cyc
+            else => false
+        }
+        it.stb    := match serving_2 {
+            case @ServingClient0() => client_0.stb
+            case @ServingClient1() => client_1.stb
+            else => false
+        }
+        it.we     := match serving_2 {
+            case @ServingClient0() => client_0.we
+            case @ServingClient1() => client_1.we
+            else => false
+        }
+        it.adr    := match serving_2 {
+            case @ServingClient0() => zext(client_0.adr[29..0])
+            case @ServingClient1() => zext(client_1.adr[29..0])
+            else => dontcare
+        }
+        it.sel    := match serving_2 {
+            case @ServingClient0() => client_0.sel
+            case @ServingClient1() => client_1.sel
+            else => dontcare
+        }
+        it.dat_wr := match serving_2 {
+            case @ServingClient0() => client_0.dat_wr
+            case @ServingClient1() => client_1.dat_wr
+            else => dontcare
+        }
+    }
+
+    // ─── Client-facing response muxes ────────────────────────────────
+    // Each client sees ack/err/read-data only from the server that
+    // granted it.
+    server socket client_0 of Wishbone {
+        it.ack := (client_0_grant == @Server0() && server_0.ack)
+            || (client_0_grant == @Server1() && server_1.ack)
+            || (client_0_grant == @Server2() && server_2.ack)
+        it.err := (client_0_grant == @Server0() && server_0.err)
+            || (client_0_grant == @Server1() && server_1.err)
+            || (client_0_grant == @Server2() && server_2.err)
+        it.dat_rd := match client_0_grant {
+            case @Server0() => server_0.dat_rd
+            case @Server1() => server_1.dat_rd
+            case @Server2() => server_2.dat_rd
+        }
+    }
+
+    server socket client_1 of Wishbone {
+        it.ack := (client_1_grant == @Server0() && server_0.ack)
+            || (client_1_grant == @Server1() && server_1.ack)
+            || (client_1_grant == @Server2() && server_2.ack)
+        it.err := (client_1_grant == @Server0() && server_0.err)
+            || (client_1_grant == @Server1() && server_1.err)
+            || (client_1_grant == @Server2() && server_2.err)
+        it.dat_rd := match client_1_grant {
+            case @Server0() => server_0.dat_rd
+            case @Server1() => server_1.dat_rd
+            case @Server2() => server_2.dat_rd
+        }
+    }
+}
