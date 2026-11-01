@@ -234,13 +234,13 @@ pub mod Control {
             case stage == #Fetching => 0b1111w4
             else match funct3[2..0] {
                 // SB: select byte lane based on address bits [1:0]
-                case 0b00 when {
-                    case alu_z[1] when {
-                        case alu_z[0] => 0b1000
+                case 0b00 let a1 = alu_z[1], a0 = alu_z[0] when {
+                    case a1 when {
+                        case a0 => 0b1000
                         else => 0b0100
                     }
                     else when {
-                        case alu_z[0] => 0b0010
+                        case a0 => 0b0010
                         else => 0b0001
                     }
                 }

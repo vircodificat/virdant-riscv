@@ -182,17 +182,19 @@ mod UartSender {
 
     // --- baud-rate pulse countdown (417 ≈ 48 MHz / 115200) ---
     reg pulse : Word[11] {
-        it <= when {
-            case reset => 0w11
-            case state == #Idle && data_valid => 417w11
-            case state == #Idle => 0w11
-            case state == #Start && it == 0w11 => 417w11
-            case state == #Start => it - 1
-            case state == #Bit && it == 0w11 => 417w11
-            case state == #Bit => it - 1
-            case state == #Stop && it == 0w11 => 0w11
-            case state == #Stop => it - 1
-            else => it
+        let expire = it == 0w11 {
+            it <= when {
+                case reset => 0w11
+                case state == #Idle && data_valid => 417w11
+                case state == #Idle => 0w11
+                case state == #Start && expire => 417w11
+                case state == #Start => it - 1
+                case state == #Bit && expire => 417w11
+                case state == #Bit => it - 1
+                case state == #Stop && expire => 0w11
+                case state == #Stop => it - 1
+                else => it
+            }
         }
     }
 
@@ -249,7 +251,7 @@ mod UartReceiver {
     // uses a slightly shorter period (384 ticks) to avoid sampling past
     // the stop-bit edge.
     reg pulse : Word[11] {
-        it <= when {
+        it <= let expire = it == 0w11 when {
             case reset => 0w11
             else match state {
                 case #Idle when {
@@ -257,18 +259,18 @@ mod UartReceiver {
                     else => 0w11
                 }
                 case #Start when {
-                    case it == 0w11 => 417w11
+                    case expire => 417w11
                     else => it - 1
                 }
                 case #Bit when {
-                    case it == 0w11 when {
+                    case expire when {
                         case bitnum < 7w3 => 417w11
                         else => 384w11
                     }
                     else => it - 1
                 }
                 case #Stop when {
-                    case it == 0w11 => 0w11
+                    case expire => 0w11
                     else => it - 1
                 }
             }

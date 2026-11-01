@@ -105,12 +105,12 @@ mod SpiFlash {
                     case read_enable => #Send
                     else => it
                 }
-                case #Send when {
-                    case buffer_index == 31w5 && !half_clock => #Recv
+                case #Send let last_bit = buffer_index == 31w5 && !half_clock when {
+                    case last_bit => #Recv
                     else => it
                 }
-                case #Recv when {
-                    case buffer_index == 31w5 && !half_clock => #Done
+                case #Recv let last_bit = buffer_index == 31w5 && !half_clock when {
+                    case last_bit => #Done
                     else => it
                 }
                 case #Done => #Idle
@@ -119,22 +119,22 @@ mod SpiFlash {
     }
 
     reg buffer : Word[32] {
-        it <= when {
+        it <= let edge = !half_clock when {
             case read_enable && state == #Idle => word(0x03w8, addr[24..0])
-            case !half_clock && state == #Send => word(it[31..0], 0w1)
-            case !half_clock && state == #Recv => word(it[31..0], spi.di)
-            case !half_clock => 0
+            case edge && state == #Send => word(it[31..0], 0w1)
+            case edge && state == #Recv => word(it[31..0], spi.di)
+            case edge => 0
             else => it
         }
     }
 
     reg buffer_index : Word[5] {
-        it <= when {
-            case !half_clock && state == #Idle => 0
-            case !half_clock && state == #Send && it != 31w5 => it + 1
-            case !half_clock && state == #Send => 0
-            case !half_clock && state == #Recv && it != 31w5 => it + 1
-            case !half_clock && state == #Recv => 0
+        it <= let edge = !half_clock when {
+            case edge && state == #Idle => 0
+            case edge && state == #Send && it != 31w5 => it + 1
+            case edge && state == #Send => 0
+            case edge && state == #Recv && it != 31w5 => it + 1
+            case edge && state == #Recv => 0
             else => it
         }
     }

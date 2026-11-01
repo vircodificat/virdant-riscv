@@ -33,8 +33,8 @@ pub mod Cpu {
         }
         it.sel    := control.mem_sel
         it.dat_wr := match idecode.funct3[2..0] {
-            case 0b00 => word(rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0], rf.rs2_out[8..0])
-            case 0b01 => word(rf.rs2_out[16..0], rf.rs2_out[16..0])
+            case 0b00 let lo = rf.rs2_out[8..0]  => word(lo, lo, lo, lo)
+            case 0b01 let hi = rf.rs2_out[16..0] => word(hi, hi)
             case 0b10 => rf.rs2_out
             else      => dontcare
         }
@@ -172,29 +172,21 @@ pub mod Cpu {
     //> unsigned extension according to `funct3[2]`.
     wire mem_buffer_shifted : Word[32] {
         it := match idecode.funct3[2..0] {
-            case 0b00 when {
-                case control.unsigned_load => zext((match alu.z[2..0] {
-                    case 0 => mem_buffer[ 8.. 0]
-                    case 1 => mem_buffer[16.. 8]
-                    case 2 => mem_buffer[24..16]
-                    case 3 => mem_buffer[32..24]
-                }) : Word[8])
-                else => sext((match alu.z[2..0] {
-                    case 0 => mem_buffer[ 8.. 0]
-                    case 1 => mem_buffer[16.. 8]
-                    case 2 => mem_buffer[24..16]
-                    case 3 => mem_buffer[32..24]
-                }) : Word[8])
+            case 0b00 let byte = match alu.z[2..0] {
+                case 0 => mem_buffer[ 8.. 0]
+                case 1 => mem_buffer[16.. 8]
+                case 2 => mem_buffer[24..16]
+                case 3 => mem_buffer[32..24]
+            } when {
+                case control.unsigned_load => zext(byte : Word[8])
+                else => sext(byte : Word[8])
             }
-            case 0b01 when {
-                case control.unsigned_load => zext((match alu.z[2..1] {
-                    case 0 => mem_buffer[16.. 0]
-                    case 1 => mem_buffer[32..16]
-                }) : Word[16])
-                else => sext((match alu.z[2..1] {
-                    case 0 => mem_buffer[16.. 0]
-                    case 1 => mem_buffer[32..16]
-                }) : Word[16])
+            case 0b01 let half = match alu.z[2..1] {
+                case 0 => mem_buffer[16.. 0]
+                case 1 => mem_buffer[32..16]
+            } when {
+                case control.unsigned_load => zext(half : Word[16])
+                else => sext(half : Word[16])
             }
             case 0b10 => mem_buffer
             case 0b11 => dontcare
