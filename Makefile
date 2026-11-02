@@ -88,7 +88,6 @@ flash-images: $(FLASHDIR)/echo.bin \
 	$(FLASHDIR)/mandelbrot.bin \
 	$(FLASHDIR)/donut.bin \
 	$(FLASHDIR)/dhrystone.bin \
-	$(FLASHDIR)/snake.bin
 
 $(FLASHDIR):
 	mkdir -p $(FLASHDIR)
@@ -103,12 +102,6 @@ $(FLASHDIR)/donut.bin: sw/donut/donut.elf build/boot.bin | $(FLASHDIR)
 	./elf2flash.py $< --boot build/boot.bin -o $@
 
 $(FLASHDIR)/dhrystone.bin: sw/dhrystone/dhrystone.elf build/boot.bin | $(FLASHDIR)
-	./elf2flash.py $< --boot build/boot.bin -o $@
-
-sw/snake/snake.elf:
-	$(MAKE) -C sw/snake snake.elf
-
-$(FLASHDIR)/snake.bin: sw/snake/snake.elf build/boot.bin | $(FLASHDIR)
 	./elf2flash.py $< --boot build/boot.bin -o $@
 
 .PHONY: flash-images
