@@ -71,15 +71,15 @@ mod SpiFlash {
     incoming reset : Reset
 
     client socket spi of Spi {
-        it.do := when {
-            case reset || state == #Idle || state == #Done => true
-            case state == #Send => buffer[31]
-            case state == #Recv => true
+        it.do := if {
+            when reset || state == #Idle || state == #Done => true
+            when state == #Send => buffer[31]
+            when state == #Recv => true
             else => true
         }
-        it.cs := when {
-            case reset || state == #Idle || state == #Done => true
-            case state == #Send || state == #Recv => false
+        it.cs := if {
+            when reset || state == #Idle || state == #Done => true
+            when state == #Send || state == #Recv => false
             else => true
         }
     }
@@ -89,7 +89,7 @@ mod SpiFlash {
 
     outgoing read_data : Word[32] {
         it := match state {
-            case #Done => word(buffer[8..0], buffer[16..8], buffer[24..16], buffer[32..24])
+            with #Done => word(buffer[8..0], buffer[16..8], buffer[24..16], buffer[32..24])
             else => dontcare
         }
     }
@@ -98,51 +98,51 @@ mod SpiFlash {
     }
 
     reg state : State {
-        it <= when {
-            case reset => #Idle
+        it <= if {
+            when reset => #Idle
             else match it {
-                case #Idle when {
-                    case read_enable => #Send
+                with #Idle if {
+                    when read_enable => #Send
                     else => it
                 }
-                case #Send let last_bit = buffer_index == 31w5 && !half_clock when {
-                    case last_bit => #Recv
+                with #Send let last_bit = buffer_index == 31w5 && !half_clock if {
+                    when last_bit => #Recv
                     else => it
                 }
-                case #Recv let last_bit = buffer_index == 31w5 && !half_clock when {
-                    case last_bit => #Done
+                with #Recv let last_bit = buffer_index == 31w5 && !half_clock if {
+                    when last_bit => #Done
                     else => it
                 }
-                case #Done => #Idle
+                with #Done => #Idle
             }
         }
     }
 
     reg buffer : Word[32] {
-        it <= let edge = !half_clock when {
-            case read_enable && state == #Idle => word(0x03w8, addr[24..0])
-            case edge && state == #Send => word(it[31..0], 0w1)
-            case edge && state == #Recv => word(it[31..0], spi.di)
-            case edge => 0
+        it <= let edge = !half_clock if {
+            when read_enable && state == #Idle => word(0x03w8, addr[24..0])
+            when edge && state == #Send => word(it[31..0], 0w1)
+            when edge && state == #Recv => word(it[31..0], spi.di)
+            when edge => 0
             else => it
         }
     }
 
     reg buffer_index : Word[5] {
-        it <= let edge = !half_clock when {
-            case edge && state == #Idle => 0
-            case edge && state == #Send && it != 31w5 => it + 1
-            case edge && state == #Send => 0
-            case edge && state == #Recv && it != 31w5 => it + 1
-            case edge && state == #Recv => 0
+        it <= let edge = !half_clock if {
+            when edge && state == #Idle => 0
+            when edge && state == #Send && it != 31w5 => it + 1
+            when edge && state == #Send => 0
+            when edge && state == #Recv && it != 31w5 => it + 1
+            when edge && state == #Recv => 0
             else => it
         }
     }
 
     reg half_clock : Bit {
-        it <= when {
-            case reset => false
-            case state == #Idle => true
+        it <= if {
+            when reset => false
+            when state == #Idle => true
             else => !it
         }
     }

@@ -45,11 +45,11 @@ mod Soc {
     //> fault).
     wire cpu_breaked : Bit {
         it := match cpu.halt {
-            case @Valid(halt) match halt {
-                case #Breaked => true
+            with @Valid(halt) match halt {
+                with #Breaked => true
                 else => false
             }
-            case @Invalid => false
+            with @Invalid => false
         }
     }
 
@@ -64,9 +64,9 @@ mod Soc {
     //> message prints, so cpu.halt deasserts long before
     //> error_report.halt rises.
     outgoing exit : Valid[Word[8]] {
-        it := when {
-            case error_report.halt => @Valid(1)
-            case cpu_breaked => @Valid(cpu.return_code[8..0])
+        it := if {
+            when error_report.halt => @Valid(1)
+            when cpu_breaked => @Valid(cpu.return_code[8..0])
             else => @Invalid()
         }
     }
@@ -80,8 +80,8 @@ mod Soc {
     //> 48 MHz) while the design settles, then released forever.
     reg reset_counter : Word[16] {
         initial it <= 0xF
-        when {
-            case it != 0 {
+        if {
+            when it != 0 {
                 it <= it - 1w16
             }
         }
@@ -93,8 +93,8 @@ mod Soc {
     spi_flash.reset := reset
 
     reg cycle : Word[32] {
-        it <= when {
-            case reset => 0w32
+        it <= if {
+            when reset => 0w32
             else => it + 1w32
         }
     }
@@ -123,11 +123,11 @@ mod Soc {
     }
     mod error_report of ErrorReport {
         it.error := match cpu.halt {
-            case @Valid(halt) match halt {
-                case #Fault => @Valid(#IllegalInstruction)
-                case #Breaked => @Invalid()
+            with @Valid(halt) match halt {
+                with #Fault => @Valid(#IllegalInstruction)
+                with #Breaked => @Invalid()
             }
-            case @Invalid => @Invalid()
+            with @Invalid => @Invalid()
         }
         it.clock := clock
         it.reset := reset
@@ -216,16 +216,16 @@ pub mod ErrorReport {
     //> starving the arms after it (which froze the halt countdown).
     wire error_valid : Bit {
         it := match error {
-            case @Valid(code) => true
-            case @Invalid() => false
+            with @Valid(code) => true
+            with @Invalid() => false
         }
     }
 
     //> The requested error code (only meaningful while error_valid).
     wire error_code : ErrorCode {
         it := match error {
-            case @Valid(code) => code
-            case @Invalid() => #IllegalInstruction
+            with @Valid(code) => code
+            with @Invalid() => #IllegalInstruction
         }
     }
 
@@ -236,14 +236,14 @@ pub mod ErrorReport {
     //> instruction, holding cpu.halt valid — from re-triggering the
     //> report after the message finishes printing.
     reg reported : Bit {
-        when {
-            case reset {
+        if {
+            when reset {
                 it <= false
             }
-            case !error_valid {
+            when !error_valid {
                 it <= false
             }
-            case error_valid && !reported {
+            when error_valid && !reported {
                 it <= true
             }
         }
@@ -259,14 +259,14 @@ pub mod ErrorReport {
     //> character of the message (LSR TEMT); cleared when the next
     //> report begins.
     outgoing reg halt : Bit {
-        when {
-            case reset {
+        if {
+            when reset {
                 it <= false
             }
-            case accept {
+            when accept {
                 it <= false
             }
-            case state == #Drain && wb.ack && wb.dat_rd[6] {
+            when state == #Drain && wb.ack && wb.dat_rd[6] {
                 it <= true
             }
         }
@@ -295,11 +295,11 @@ pub mod ErrorReport {
     //> `wb.ack` is high, `rom_index` has already advanced, so `char`
     //> presents the *next* byte.
     reg char_reg : Word[8] {
-        when {
-            case reset {
+        if {
+            when reset {
                 it <= 0
             }
-            case state == #Poll && wb.ack && wb.dat_rd[5] {
+            when state == #Poll && wb.ack && wb.dat_rd[5] {
                 it <= char
             }
         }
@@ -315,23 +315,23 @@ pub mod ErrorReport {
     //> completely empty — the last character has fully shifted out),
     //> then -> Idle with `halt` raised.
     reg state : ReportState {
-        when {
-            case reset {
+        if {
+            when reset {
                 it <= #Idle
             }
-            case accept {
+            when accept {
                 it <= #Poll
             }
-            case state == #Poll && wb.ack && wb.dat_rd[5] {
+            when state == #Poll && wb.ack && wb.dat_rd[5] {
                 it <= #Sending
             }
-            case state == #Sending && wb.ack && char != 0w8 {
+            when state == #Sending && wb.ack && char != 0w8 {
                 it <= #Poll
             }
-            case state == #Sending && wb.ack && char == 0w8 {
+            when state == #Sending && wb.ack && char == 0w8 {
                 it <= #Drain
             }
-            case state == #Drain && wb.ack && wb.dat_rd[6] {
+            when state == #Drain && wb.ack && wb.dat_rd[6] {
                 it <= #Idle
             }
         }
@@ -339,8 +339,8 @@ pub mod ErrorReport {
 
     //> Code of the error currently being reported.
     reg reported_code : ErrorCode {
-        when {
-            case accept {
+        if {
+            when accept {
                 it <= error_code
             }
         }
@@ -351,14 +351,14 @@ pub mod ErrorReport {
     //> Starts at 0 when a report is accepted and advances after each
     //> acknowledged byte write.
     reg char_index : Word[8] {
-        when {
-            case reset {
+        if {
+            when reset {
                 it <= 0
             }
-            case accept {
+            when accept {
                 it <= 0
             }
-            case state == #Sending && wb.ack && char != 0 {
+            when state == #Sending && wb.ack && char != 0 {
                 it <= it + 1
             }
         }
@@ -379,34 +379,34 @@ pub mod ErrorReport {
     //> "ERROR: Illegal Instruction", NUL-terminated.
     wire illegal_instruction_message_char : Word[8] {
         it := match rom_index {
-            case 0  => 0x45     // 'E'
-            case 1  => 0x52     // 'R'
-            case 2  => 0x52     // 'R'
-            case 3  => 0x4f     // 'O'
-            case 4  => 0x52     // 'R'
-            case 5  => 0x3a     // ':'
-            case 6  => 0x20     // ' '
-            case 7  => 0x49     // 'I'
-            case 8  => 0x6c     // 'l'
-            case 9  => 0x6c     // 'l'
-            case 10 => 0x65     // 'e'
-            case 11 => 0x67     // 'g'
-            case 12 => 0x61     // 'a'
-            case 13 => 0x6c     // 'l'
-            case 14 => 0x20     // ' '
-            case 15 => 0x49     // 'I'
-            case 16 => 0x6e     // 'n'
-            case 17 => 0x73     // 's'
-            case 18 => 0x74     // 't'
-            case 19 => 0x72     // 'r'
-            case 20 => 0x75     // 'u'
-            case 21 => 0x63     // 'c'
-            case 22 => 0x74     // 't'
-            case 23 => 0x69     // 'i'
-            case 24 => 0x6f     // 'o'
-            case 25 => 0x6e     // 'n'
-            case 26 => 0x0d     // '\r'
-            case 27 => 0x0a     // '\n'
+            with 0  => 0x45     // 'E'
+            with 1  => 0x52     // 'R'
+            with 2  => 0x52     // 'R'
+            with 3  => 0x4f     // 'O'
+            with 4  => 0x52     // 'R'
+            with 5  => 0x3a     // ':'
+            with 6  => 0x20     // ' '
+            with 7  => 0x49     // 'I'
+            with 8  => 0x6c     // 'l'
+            with 9  => 0x6c     // 'l'
+            with 10 => 0x65     // 'e'
+            with 11 => 0x67     // 'g'
+            with 12 => 0x61     // 'a'
+            with 13 => 0x6c     // 'l'
+            with 14 => 0x20     // ' '
+            with 15 => 0x49     // 'I'
+            with 16 => 0x6e     // 'n'
+            with 17 => 0x73     // 's'
+            with 18 => 0x74     // 't'
+            with 19 => 0x72     // 'r'
+            with 20 => 0x75     // 'u'
+            with 21 => 0x63     // 'c'
+            with 22 => 0x74     // 't'
+            with 23 => 0x69     // 'i'
+            with 24 => 0x6f     // 'o'
+            with 25 => 0x6e     // 'n'
+            with 26 => 0x0d     // '\r'
+            with 27 => 0x0a     // '\n'
             else    => 0x00     // NUL terminator
         }
     }
@@ -414,7 +414,7 @@ pub mod ErrorReport {
     //> Character byte selected from the message ROM.
     wire char : Word[8] {
         it := match reported_code {
-            case #IllegalInstruction => illegal_instruction_message_char
+            with #IllegalInstruction => illegal_instruction_message_char
         }
     }
 }
