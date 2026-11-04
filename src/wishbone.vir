@@ -79,13 +79,13 @@ pub mod WbMux13 {
         server_1.we := it.we && serving == @Server1()
         server_2.we := it.we && serving == @Server2()
 
-        server_0.adr    := zext(it.adr[29..0])
-        server_1.adr    := zext(it.adr[29..0])
-        server_2.adr    := zext(it.adr[29..0])
+        server_0.adr := zext(it.adr[29..0])
+        server_1.adr := zext(it.adr[29..0])
+        server_2.adr := zext(it.adr[29..0])
 
-        server_0.sel    := it.sel
-        server_1.sel    := it.sel
-        server_2.sel    := it.sel
+        server_0.sel := it.sel
+        server_1.sel := it.sel
+        server_2.sel := it.sel
 
         server_0.dat_wr := it.dat_wr
         server_1.dat_wr := it.dat_wr
@@ -126,7 +126,8 @@ pub mod WbMux13 {
 //>
 //> Grants are registered: a server's arbiter latches
 //> @ServingClientN() when it accepts a request and returns to
-//> @Idle() when the granted client deasserts cyc.  Clients
+//> @Idle() when the granted client stops requesting that server
+//> (dropping cyc or switching its address to another slave).  Clients
 //> therefore see a one-cycle latency before ack, which is ordinary
 //> Wishbone wait-state behavior.
 pub mod WbCrossbar23 {
@@ -134,43 +135,85 @@ pub mod WbCrossbar23 {
     incoming reset : Reset
 
     // ─── Address decode ──────────────────────────────────────────────
-    wire route_0 : SelState {
-        it := match client_0.adr[32..29] {
-            with 0b001 => @Server0()
-            with 0b010 => @Server1()
-            with 0b100 => @Server2()
-            else => dontcare
-        }
-    }
+    //> One hit bit per (client, server).  Deliberately *not* an enum
+    //> with a `dontcare` else-arm: these bits sit on the control path
+    //> (request → grant → ack → CPU stall), and `dontcare` is "any
+    //> value" — a simulator may legally pick a different value at each
+    //> use site, which turned a one-cycle idle gap into a spurious ack
+    //> that let the CPU leave Fetch with no data (the pure-Virdant
+    //> simulator did exactly that; Verilog's x→0 masked it).  An
+    //> unmapped address now simply hits no server.
+    wire hit_0_0 : Bit { it := client_0.adr[32..29] == 0b001w3 }
+    wire hit_0_1 : Bit { it := client_0.adr[32..29] == 0b010w3 }
+    wire hit_0_2 : Bit { it := client_0.adr[32..29] == 0b100w3 }
 
-    wire route_1 : SelState {
-        it := match client_1.adr[32..29] {
-            with 0b001 => @Server0()
-            with 0b010 => @Server1()
-            with 0b100 => @Server2()
-            else => dontcare
-        }
-    }
+    wire hit_1_0 : Bit { it := client_1.adr[32..29] == 0b001w3 }
+    wire hit_1_1 : Bit { it := client_1.adr[32..29] == 0b010w3 }
+    wire hit_1_2 : Bit { it := client_1.adr[32..29] == 0b100w3 }
 
     // ─── Requests ────────────────────────────────────────────────────
     wire client_0_request_0 : Bit {
-        it := client_0.cyc && client_0.stb && route_0 == @Server0()
+        it := client_0.cyc && client_0.stb && hit_0_0
     }
     wire client_0_request_1 : Bit {
-        it := client_0.cyc && client_0.stb && route_0 == @Server1()
+        it := client_0.cyc && client_0.stb && hit_0_1
     }
     wire client_0_request_2 : Bit {
-        it := client_0.cyc && client_0.stb && route_0 == @Server2()
+        it := client_0.cyc && client_0.stb && hit_0_2
     }
 
     wire client_1_request_0 : Bit {
-        it := client_1.cyc && client_1.stb && route_1 == @Server0()
+        it := client_1.cyc && client_1.stb && hit_1_0
     }
     wire client_1_request_1 : Bit {
-        it := client_1.cyc && client_1.stb && route_1 == @Server1()
+        it := client_1.cyc && client_1.stb && hit_1_1
     }
     wire client_1_request_2 : Bit {
-        it := client_1.cyc && client_1.stb && route_1 == @Server2()
+        it := client_1.cyc && client_1.stb && hit_1_2
+    }
+
+    // ─── Active grants ───────────────────────────────────────────────
+    //> Whether server_N is currently being accessed by its granted
+    //> client: the grant is live only while that client keeps
+    //> requesting *this* server (cyc && stb with an address that still
+    //> decodes to this server).
+    //>
+    //> A master may hold cyc across back-to-back transactions to
+    //> different slaves — the CPU goes straight from an SPI-flash
+    //> instruction fetch to a RAM/UART data access without ever
+    //> dropping cyc.  Tying the grant to the client's current request
+    //> (rather than merely to cyc) makes the arbiter release the old
+    //> server as soon as the master moves on, so at most one arbiter
+    //> grants any given client at a time and the client-facing ack mux
+    //> — which can name only one server — stays unambiguous.
+    //>
+    //> These wires also gate the server-facing cyc/stb, so a slave
+    //> never sees a phantom transaction during the one cycle between
+    //> the master switching away and the grant being released (an
+    //> ungated SPI controller would start a bogus read there and later
+    //> ack it into an unrelated fetch).
+    wire serve_0 : Bit {
+        it := match serving_0 {
+            with @ServingClient0() => client_0.cyc && client_0.stb && hit_0_0
+            with @ServingClient1() => client_1.cyc && client_1.stb && hit_1_0
+            else => false
+        }
+    }
+
+    wire serve_1 : Bit {
+        it := match serving_1 {
+            with @ServingClient0() => client_0.cyc && client_0.stb && hit_0_1
+            with @ServingClient1() => client_1.cyc && client_1.stb && hit_1_1
+            else => false
+        }
+    }
+
+    wire serve_2 : Bit {
+        it := match serving_2 {
+            with @ServingClient0() => client_0.cyc && client_0.stb && hit_0_2
+            with @ServingClient1() => client_1.cyc && client_1.stb && hit_1_2
+            else => false
+        }
     }
 
     // ─── Per-server arbiters ─────────────────────────────────────────
@@ -184,10 +227,10 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_0 == @ServingClient0() && !client_0.cyc {
+            when serving_0 == @ServingClient0() && !serve_0 {
                 it <= @Idle()
             }
-            when serving_0 == @ServingClient1() && !client_1.cyc {
+            when serving_0 == @ServingClient1() && !serve_0 {
                 it <= @Idle()
             }
             when serving_0 == @Idle() && client_0_request_0 && (priority_0 == @Client0First() || !client_1_request_0) {
@@ -204,10 +247,10 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_1 == @ServingClient0() && !client_0.cyc {
+            when serving_1 == @ServingClient0() && !serve_1 {
                 it <= @Idle()
             }
-            when serving_1 == @ServingClient1() && !client_1.cyc {
+            when serving_1 == @ServingClient1() && !serve_1 {
                 it <= @Idle()
             }
             when serving_1 == @Idle() && client_0_request_1 && (priority_1 == @Client0First() || !client_1_request_1) {
@@ -224,10 +267,10 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_2 == @ServingClient0() && !client_0.cyc {
+            when serving_2 == @ServingClient0() && !serve_2 {
                 it <= @Idle()
             }
-            when serving_2 == @ServingClient1() && !client_1.cyc {
+            when serving_2 == @ServingClient1() && !serve_2 {
                 it <= @Idle()
             }
             when serving_2 == @Idle() && client_0_request_2 && (priority_2 == @Client0First() || !client_1_request_2) {
@@ -239,27 +282,16 @@ pub mod WbCrossbar23 {
         }
     }
 
-    //> Grant release: the granted client has finished its transaction.
+    //> Grant release: the granted client has finished (or moved on
+    //> from) its transaction with this server.
     wire release_0 : Bit {
-        it := match serving_0 {
-            with @ServingClient0() => !client_0.cyc
-            with @ServingClient1() => !client_1.cyc
-            else => false
-        }
+        it := !serve_0
     }
     wire release_1 : Bit {
-        it := match serving_1 {
-            with @ServingClient0() => !client_0.cyc
-            with @ServingClient1() => !client_1.cyc
-            else => false
-        }
+        it := !serve_1
     }
     wire release_2 : Bit {
-        it := match serving_2 {
-            with @ServingClient0() => !client_0.cyc
-            with @ServingClient1() => !client_1.cyc
-            else => false
-        }
+        it := !serve_2
     }
 
     // Round-robin priority, one per server.  Flips on grant release so
@@ -307,40 +339,25 @@ pub mod WbCrossbar23 {
     }
 
     // ─── Grant wiring ────────────────────────────────────────────────
-    // Which server (if any) currently grants each client.  Drives the
-    // client-facing response muxes.
-    wire client_0_grant : SelState {
-        it := match word(serving_0 == @ServingClient0(), serving_1 == @ServingClient0(), serving_2 == @ServingClient0()) {
-            with 0b100w3 => @Server0()
-            with 0b010w3 => @Server1()
-            with 0b001w3 => @Server2()
-            else => dontcare
-        }
-    }
+    //> Which server (if any) currently grants each client, as one bit
+    //> per server.  At most one is set (a client requests one address
+    //> at a time, and a grant is released as soon as the request moves
+    //> away).  No `dontcare` here either — see the address-decode note.
+    wire grant_0_0 : Bit { it := serving_0 == @ServingClient0() }
+    wire grant_0_1 : Bit { it := serving_1 == @ServingClient0() }
+    wire grant_0_2 : Bit { it := serving_2 == @ServingClient0() }
 
-    wire client_1_grant : SelState {
-        it := match word(serving_0 == @ServingClient1(), serving_1 == @ServingClient1(), serving_2 == @ServingClient1()) {
-            with 0b100w3 => @Server0()
-            with 0b010w3 => @Server1()
-            with 0b001w3 => @Server2()
-            else => dontcare
-        }
-    }
+    wire grant_1_0 : Bit { it := serving_0 == @ServingClient1() }
+    wire grant_1_1 : Bit { it := serving_1 == @ServingClient1() }
+    wire grant_1_2 : Bit { it := serving_2 == @ServingClient1() }
 
     // ─── Server-facing drivers ───────────────────────────────────────
     // Each server sees the signals of whichever client was granted to
-    // it; ungranted servers are idle.
+    // it, gated by that client's live request (serve_N); ungranted
+    // servers are idle.
     client socket server_0 of Wishbone {
-        it.cyc    := match serving_0 {
-            with @ServingClient0() => client_0.cyc
-            with @ServingClient1() => client_1.cyc
-            else => false
-        }
-        it.stb    := match serving_0 {
-            with @ServingClient0() => client_0.stb
-            with @ServingClient1() => client_1.stb
-            else => false
-        }
+        it.cyc    := serve_0
+        it.stb    := serve_0
         it.we     := match serving_0 {
             with @ServingClient0() => client_0.we
             with @ServingClient1() => client_1.we
@@ -364,16 +381,8 @@ pub mod WbCrossbar23 {
     }
 
     client socket server_1 of Wishbone {
-        it.cyc    := match serving_1 {
-            with @ServingClient0() => client_0.cyc
-            with @ServingClient1() => client_1.cyc
-            else => false
-        }
-        it.stb    := match serving_1 {
-            with @ServingClient0() => client_0.stb
-            with @ServingClient1() => client_1.stb
-            else => false
-        }
+        it.cyc    := serve_1
+        it.stb    := serve_1
         it.we     := match serving_1 {
             with @ServingClient0() => client_0.we
             with @ServingClient1() => client_1.we
@@ -397,16 +406,8 @@ pub mod WbCrossbar23 {
     }
 
     client socket server_2 of Wishbone {
-        it.cyc    := match serving_2 {
-            with @ServingClient0() => client_0.cyc
-            with @ServingClient1() => client_1.cyc
-            else => false
-        }
-        it.stb    := match serving_2 {
-            with @ServingClient0() => client_0.stb
-            with @ServingClient1() => client_1.stb
-            else => false
-        }
+        it.cyc    := serve_2
+        it.stb    := serve_2
         it.we     := match serving_2 {
             with @ServingClient0() => client_0.we
             with @ServingClient1() => client_1.we
@@ -431,32 +432,35 @@ pub mod WbCrossbar23 {
 
     // ─── Client-facing response muxes ────────────────────────────────
     // Each client sees ack/err/read-data only from the server that
-    // granted it.
+    // granted it.  Read data defaults to zero when nothing is granted;
+    // the master only samples it alongside ack.
     server socket client_0 of Wishbone {
-        it.ack := (client_0_grant == @Server0() && server_0.ack)
-            || (client_0_grant == @Server1() && server_1.ack)
-            || (client_0_grant == @Server2() && server_2.ack)
-        it.err := (client_0_grant == @Server0() && server_0.err)
-            || (client_0_grant == @Server1() && server_1.err)
-            || (client_0_grant == @Server2() && server_2.err)
-        it.dat_rd := match client_0_grant {
-            with @Server0() => server_0.dat_rd
-            with @Server1() => server_1.dat_rd
-            with @Server2() => server_2.dat_rd
+        it.ack    := (grant_0_0 && server_0.ack)
+        || (grant_0_1 && server_1.ack)
+        || (grant_0_2 && server_2.ack)
+        it.err    := (grant_0_0 && server_0.err)
+        || (grant_0_1 && server_1.err)
+        || (grant_0_2 && server_2.err)
+        it.dat_rd := if {
+            when grant_0_0 => server_0.dat_rd
+            when grant_0_1 => server_1.dat_rd
+            when grant_0_2 => server_2.dat_rd
+            else => 0w32
         }
     }
 
     server socket client_1 of Wishbone {
-        it.ack := (client_1_grant == @Server0() && server_0.ack)
-            || (client_1_grant == @Server1() && server_1.ack)
-            || (client_1_grant == @Server2() && server_2.ack)
-        it.err := (client_1_grant == @Server0() && server_0.err)
-            || (client_1_grant == @Server1() && server_1.err)
-            || (client_1_grant == @Server2() && server_2.err)
-        it.dat_rd := match client_1_grant {
-            with @Server0() => server_0.dat_rd
-            with @Server1() => server_1.dat_rd
-            with @Server2() => server_2.dat_rd
+        it.ack    := (grant_1_0 && server_0.ack)
+        || (grant_1_1 && server_1.ack)
+        || (grant_1_2 && server_2.ack)
+        it.err    := (grant_1_0 && server_0.err)
+        || (grant_1_1 && server_1.err)
+        || (grant_1_2 && server_2.err)
+        it.dat_rd := if {
+            when grant_1_0 => server_0.dat_rd
+            when grant_1_1 => server_1.dat_rd
+            when grant_1_2 => server_2.dat_rd
+            else => 0w32
         }
     }
 }

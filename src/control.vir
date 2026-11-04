@@ -158,7 +158,7 @@ pub mod Control {
         }
     }
     //> ALU operation code (decoded from funct3/funct7).
-    outgoing alu_op : opcode::AluOpcode dependson opcode, funct3 {
+    outgoing alu_op : opcode::AluOpcode dependson opcode, funct3, funct7 {
         it := match opcode {
             with #BRANCH match funct3 {
                 with 0 => #Eq
@@ -216,8 +216,15 @@ pub mod Control {
     }
 
     //> Memory strobe: asserted when fetching, loading, or storing.
+    //>
+    //> A bus request is only meaningful in the Fetch stage (instruction
+    //> fetch) or the Execute stage of a LOAD/STORE.  In particular it
+    //> must be low in the Writeback stage of a LOAD/STORE: the socket's
+    //> address mux drives dontcare there, and a phantom request with a
+    //> garbage address can alias another slave's decoder (e.g. a
+    //> spurious UART RBR read that clears rx_pending).
     outgoing mem_strobe : Bit dependson opcode, stage {
-        it := is_fetching || opcode == #LOAD || opcode == #STORE
+        it := is_fetching || ((opcode == #LOAD || opcode == #STORE) && stage == #Execute)
     }
 
     mod system_op of SystemOpFromFunct12 {
@@ -234,13 +241,13 @@ pub mod Control {
             when stage == #Fetching => 0b1111w4
             else match funct3[2..0] {
                 // SB: select byte lane based on address bits [1:0]
-                with 0b00 let a1 = alu_z[1], a0 = alu_z[0] if {
-                    when a1 if {
-                        when a0 => 0b1000
+                with 0b00 if {
+                    when alu_z[1] if {
+                        when alu_z[0] => 0b1000
                         else => 0b0100
                     }
                     else if {
-                        when a0 => 0b0010
+                        when alu_z[0] => 0b0010
                         else => 0b0001
                     }
                 }
@@ -268,7 +275,7 @@ pub mod Control {
     incoming stage : opcode::CpuStage
 
     //> MRET instruction detected (used to gate CSR-based PC update).
-    outgoing is_mret : Bit dependson opcode, funct3 {
+    outgoing is_mret : Bit dependson opcode, funct3, funct12 {
         it := opcode == #SYSTEM && funct3 == 0b000 && system_op.op == #Mret
     }
 
@@ -277,7 +284,7 @@ pub mod Control {
     //> Only when funct3 == 0b000: CSR instructions (funct3 != 0) share the
     //> SYSTEM opcode, and their funct12 must not be decoded as a system op
     //> (dontcare would collide with #Ecall = 0x000 and halt the CPU).
-    outgoing is_break : Bit dependson opcode, funct3 {
+    outgoing is_break : Bit dependson opcode, funct3, funct12 {
         it := match opcode {
             with #SYSTEM if {
                 when funct3 == 0b000 => system_op.op == #Ecall || system_op.op == #Ebreak
@@ -293,11 +300,20 @@ pub mod Control {
     //> Pipeline stall signal.
     //>
     //> Stalls during Fetch if memory is not ready, or during Execute
-    //> if a LOAD is waiting on memory.
-    outgoing stall : Bit dependson stage, opcode, mem_ack {
+    //> if a LOAD or STORE is waiting on memory.
+    //>
+    //> STOREs must wait for the acknowledge too: the Wishbone crossbar
+    //> grants a server one cycle after the request (registered arbiter),
+    //> so a single-cycle strobe would expire before the server ever
+    //> sees cyc/stb — the write would be silently dropped (this bit us:
+    //> the boot copy's sw never reached RAM and the copied program
+    //> executed 0x00000000).  LOADs already stalled; holding the strobe
+    //> for STOREs costs one extra cycle per store and matches the
+    //> crossbar's documented one-cycle ack latency.
+    outgoing stall : Bit dependson opcode, stage, mem_ack {
         it := match stage {
             with #Fetching => !mem_ack
-            with #Execute => opcode == #LOAD && !mem_ack
+            with #Execute => (opcode == #LOAD || opcode == #STORE) && !mem_ack
             else => false
         }
     }
