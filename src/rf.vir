@@ -1,12 +1,14 @@
-//> Register file (external module).
+//> Register file.
 //>
 //> A 32-entry × 32-bit register file with one write port (rd) and two
 //> read ports (rs1, rs2). Register x0 is hardwired to zero.
 //>
-//> This is an external (`ext`) module because it is implemented by a
-//> separate hardware primitive (e.g., FPGA block RAM or a synthesized
-//> register array).
-pub ext mod Rf {
+//> The storage is a Virdant `memory`: one clocked write port and two
+//> asynchronous read ports. Words never written read as unspecified,
+//> so the register file is initialized to all zeros by an image (the
+//> ABI does not require it, but tests and crt0s read registers that
+//> were only ever reset).
+pub mod Rf {
     //> Global clock.
     incoming clock : Clock
 
@@ -23,7 +25,27 @@ pub ext mod Rf {
     incoming write : Bit
 
     //> Data read from `rs1` (zero if rs1 == 0).
-    outgoing rs1_out : Word[32]
+    outgoing rs1_out : Word[32] dependson rs1 {
+        it := if {
+            when rs1 == 0 => 0
+            else => regs[dyn rs1]
+        }
+    }
     //> Data read from `rs2` (zero if rs2 == 0).
-    outgoing rs2_out : Word[32]
+    outgoing rs2_out : Word[32] dependson rs2 {
+        it := if {
+            when rs2 == 0 => 0
+            else => regs[dyn rs2]
+        }
+    }
+
+    //> The 32 × 32-bit register array, zero-initialized.
+    @image("images/rf_zero.bin")
+    memory regs[32] : Word[32] {
+        if {
+            when write && rd != 0 {
+                it[dyn rd] <= rd_in
+            }
+        }
+    }
 }
