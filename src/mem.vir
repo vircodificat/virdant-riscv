@@ -19,8 +19,6 @@ pub mod WbMem {
         it.ack := it.stb
         // No error responses.
         it.err := false
-
-        unused it.sel
     }
 
     //> Internal memory array.
