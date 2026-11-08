@@ -14,13 +14,14 @@
 //! channels would otherwise count as ports in the platform port match.
 
 import cpu
+import icache
 import mem
 import spi
 import uart
 import virt
 import wishbone
 
-//> SoC: CPU + RAM + UART + SPI flash behind a Wishbone mux.
+//> SoC: CPU + ICache + RAM + UART + SPI flash behind a Wishbone mux.
 //>
 //> Bridges the children's socket channels to plain ports: the cosi
 //> channels (driven by the children) are forwarded to the outgoing pins,
@@ -117,9 +118,19 @@ mod Soc {
         it.client_0 :=: cpu.mem
         it.client_1 :=: error_report.wb
 
-        it.server_0 :=: spi_flash.wb
+        it.server_0 :=: icache.core
         it.server_1 :=: uart_dev.wb
         it.server_2 :=: mem.wb
+    }
+
+    //> Instruction cache instance (Wishbone-attached).
+    //>
+    //> Caches words fetched from the SPI flash window between the
+    //> crossbar (server_0) and the flash controller.
+    mod icache of icache::ICache {
+        it.clock := clock
+        it.reset := reset
+        it.spi :=: spi_flash.wb
     }
     mod error_report of ErrorReport {
         it.error := match cpu.halt {
