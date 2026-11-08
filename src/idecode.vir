@@ -76,9 +76,7 @@ pub mod IDecode {
 
     //> Whether the opcode is illegal (not a recognized RISC-V primary opcode).
     // Unused — kept for documentation / future exception support.
-    outgoing wire illegal_opcode : Bit dependson instr {
-        unused it
-
+    outgoing illegal_opcode : Bit dependson instr {
         it := match opcode_bits {
             with 99 => false
             with 103 => false

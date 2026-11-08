@@ -104,28 +104,6 @@ enum type UartFsmState {
     Stop  = 0b11
 }
 
-mod ExampleTop {
-    incoming clock : Clock // 1MHz
-    incoming reset : Bit
-    outgoing fin   : Bit {
-        it            := cycle == 150000w32
-    }
-    mod sender of UartSender {
-        unused it.ready
-        unused it.uart_tx
-        it.clock      := clock
-        it.reset      := reset
-        it.data       := 65w8
-        it.data_valid := true
-    }
-    reg cycle      : Word[32] {
-        it <= if {
-            when reset => 0w32
-            else => it + 1w32
-        }
-    }
-}
-
 mod UartSender {
     incoming clock      : Clock // 1MHz
     incoming reset      : Bit

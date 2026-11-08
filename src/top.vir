@@ -254,7 +254,7 @@ pub mod ErrorReport {
             when !error_valid {
                 it <= false
             }
-            when error_valid && !reported {
+            when error_valid && !it {
                 it <= true
             }
         }
@@ -333,16 +333,16 @@ pub mod ErrorReport {
             when accept {
                 it <= #Poll
             }
-            when state == #Poll && wb.ack && wb.dat_rd[5] {
+            when it == #Poll && wb.ack && wb.dat_rd[5] {
                 it <= #Sending
             }
-            when state == #Sending && wb.ack && char != 0w8 {
+            when it == #Sending && wb.ack && char != 0w8 {
                 it <= #Poll
             }
-            when state == #Sending && wb.ack && char == 0w8 {
+            when it == #Sending && wb.ack && char == 0w8 {
                 it <= #Drain
             }
-            when state == #Drain && wb.ack && wb.dat_rd[6] {
+            when it == #Drain && wb.ack && wb.dat_rd[6] {
                 it <= #Idle
             }
         }
