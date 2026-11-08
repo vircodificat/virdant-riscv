@@ -227,16 +227,16 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_0 == @ServingClient0() && !serve_0 {
+            when it == @ServingClient0() && !serve_0 {
                 it <= @Idle()
             }
-            when serving_0 == @ServingClient1() && !serve_0 {
+            when it == @ServingClient1() && !serve_0 {
                 it <= @Idle()
             }
-            when serving_0 == @Idle() && client_0_request_0 && (priority_0 == @Client0First() || !client_1_request_0) {
+            when it == @Idle() && client_0_request_0 && (priority_0 == @Client0First() || !client_1_request_0) {
                 it <= @ServingClient0()
             }
-            when serving_0 == @Idle() && client_1_request_0 {
+            when it == @Idle() && client_1_request_0 {
                 it <= @ServingClient1()
             }
         }
@@ -247,16 +247,16 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_1 == @ServingClient0() && !serve_1 {
+            when it == @ServingClient0() && !serve_1 {
                 it <= @Idle()
             }
-            when serving_1 == @ServingClient1() && !serve_1 {
+            when it == @ServingClient1() && !serve_1 {
                 it <= @Idle()
             }
-            when serving_1 == @Idle() && client_0_request_1 && (priority_1 == @Client0First() || !client_1_request_1) {
+            when it == @Idle() && client_0_request_1 && (priority_1 == @Client0First() || !client_1_request_1) {
                 it <= @ServingClient0()
             }
-            when serving_1 == @Idle() && client_1_request_1 {
+            when it == @Idle() && client_1_request_1 {
                 it <= @ServingClient1()
             }
         }
@@ -267,16 +267,16 @@ pub mod WbCrossbar23 {
             when reset {
                 it <= @Idle()
             }
-            when serving_2 == @ServingClient0() && !serve_2 {
+            when it == @ServingClient0() && !serve_2 {
                 it <= @Idle()
             }
-            when serving_2 == @ServingClient1() && !serve_2 {
+            when it == @ServingClient1() && !serve_2 {
                 it <= @Idle()
             }
-            when serving_2 == @Idle() && client_0_request_2 && (priority_2 == @Client0First() || !client_1_request_2) {
+            when it == @Idle() && client_0_request_2 && (priority_2 == @Client0First() || !client_1_request_2) {
                 it <= @ServingClient0()
             }
-            when serving_2 == @Idle() && client_1_request_2 {
+            when it == @Idle() && client_1_request_2 {
                 it <= @ServingClient1()
             }
         }
