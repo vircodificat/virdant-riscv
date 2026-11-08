@@ -1,0 +1,12 @@
+# Verify the cache fills on a miss and the CPU advances past Fetching.
+poke rx true
+poke spi_miso false
+tick 16
+assert soc.icache.state == #Idle
+assert soc.cpu.stage == #Fetching
+tick 2
+assert soc.icache.state == #Fill
+assert soc.icache.spi.cyc
+tick 200
+assert soc.cpu.stage != #Fetching
+exit

@@ -1,0 +1,31 @@
+poke rx true
+poke spi_miso false
+# Run through the power-on reset (0xF cycles) and then some.
+tick 20
+print soc.reset
+print soc.cpu.stage
+print soc.cpu.pc
+print soc.cpu.mem.cyc
+print soc.cpu.mem.adr
+print soc.mux13.serving_0
+print soc.icache.state
+print soc.icache.core.cyc
+print soc.icache.core.adr
+print soc.icache.hit
+print soc.icache.miss_req
+print soc.icache.spi.cyc
+print soc.spi_flash.spi_flash.state
+tick 100
+print soc.cpu.stage
+print soc.icache.state
+print soc.icache.spi.cyc
+print soc.icache.spi.ack
+print soc.spi_flash.spi_flash.state
+print soc.spi_flash.spi_flash.buffer_index
+tick 100
+print soc.cpu.stage
+print soc.cpu.pc
+print soc.icache.state
+print soc.spi_flash.spi_flash.state
+print soc.icache.line0
+exit
