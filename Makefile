@@ -5,11 +5,7 @@ TRACE ?= 0
 TRACE_FLAGS = $(if $(filter 1,$(TRACE)),--vcd=build/$@.vcd,)
 SCOREBOARD_TRACE = $(if $(filter 1,$(TRACE)),--trace,)
 
-ASM=loop.s
-HEX=build/$(ASM:.s=.hex)
-VERILATOR_ROOT=$(shell verilator -V | grep VERILATOR_ROOT | awk '{print $$3}' | head -n1)
 VIR_SOURCES := $(wildcard src/*.vir)
-SV_SOURCES := $(wildcard ext/*.sv)
 
 # Run the RISC-V ISA tests on the virt simulator.  Each test is converted
 # to a flash image (bootloader + ELF) and run; the test's exit code comes
@@ -106,46 +102,21 @@ $(FLASHDIR)/dhrystone.bin: sw/dhrystone/dhrystone.elf build/boot.bin | $(FLASHDI
 
 .PHONY: flash-images
 
-build/sim: sim.cpp $(VIR_SOURCES) $(SV_SOURCES) build/
-	verilator \
-		--sv \
-		--cc build/*.sv \
-		--Mdir build \
-		--prefix Vvirt \
-		--top-module Top \
-		--build \
-		-Wno-UNOPTFLAT \
-		--trace-vcd
-	g++ \
-		-Ibuild/ \
-		-I$(VERILATOR_ROOT)/include \
-		-I$(VERILATOR_ROOT)/include/vltstd \
-		$(VERILATOR_ROOT)/include/verilated_vcd_c.cpp \
-		sim.cpp \
-		build/verilated.o \
-		build/verilated_threads.o \
-		build/VTop__ALL.o \
-		-O2 \
-		-lelf \
-		-o build/sim
+build/Top: $(VIR_SOURCES)
+	$(VIRT) build
+
+# The XIP flash bootloader: copies the test image from flash (offset
+# 0x1000) to RAM at 0x80000000 and jumps to it.  See boot/boot.s.
+build/boot.bin: boot/boot.s boot/link.ld
+	mkdir -p build
+	riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -static \
+		-T boot/link.ld -o build/boot.elf boot/boot.s
+	riscv64-unknown-elf-objcopy -O binary build/boot.elf build/boot.bin
 
 build: build/
 
 build/: $(VIR_SOURCES)
 	$(VIR) build
-	cp ext/* build/
-
-build/%.hex: %.s
-	./asm2hex.sh $< $@
-
-run: build/sim $(HEX)
-	echo $(HEX)
-	./build/sim $(HEX)
-
-out.vcd: run
-
-wave: out.vcd $(HEX)
-	gtkwave sim.gtkw
 
 wave-spi: build/dump.vcd
 	gtkwave build/dump.vcd spi.gtkw
@@ -171,11 +142,6 @@ test_wbuart: tb/wbuart_tb.sv build
 
 # ── virt (Verilator) flow ──────────────────────────────────────────────
 
-# The simulator binary for the virt::Virt platform, built by `virt build`
-# (which runs `vir build`, copies ext/*.sv, then Verilator + link).
-build/Top: $(VIR_SOURCES) $(SV_SOURCES)
-	$(VIRT) build
-
 # The XIP flash bootloader: copies the test image from flash (offset
 # 0x1000) to RAM at 0x80000000 and jumps to it.  See boot/boot.s.
 build/boot.bin: boot/boot.s boot/link.ld
@@ -184,9 +150,8 @@ build/boot.bin: boot/boot.s boot/link.ld
 		-T boot/link.ld -o build/boot.elf boot/boot.s
 	riscv64-unknown-elf-objcopy -O binary build/boot.elf build/boot.bin
 
-synth: $(VIR_SOURCES) $(SV_SOURCES)
+synth: $(VIR_SOURCES)
 	$(VIR) build
-	cp ext/* build/
 	yosys -p "synth_ice40 -top Top -json build/top.json" build/*.sv 2>&1 | tee build/yosys.log
 	nextpnr-ice40 --up5k --package sg48 \
 		--json build/top.json \

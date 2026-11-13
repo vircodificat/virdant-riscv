@@ -87,9 +87,11 @@ mod Mem {
         it := if { when sel[0] => data_in[8..0] else => old_word[8..0] }
     }
 
-    //> The 64 KiB memory array. Words never written read as
-    //> unspecified; software only reads what it (or the bootloader)
-    //> wrote first.
+    //> The 64 KiB memory array, zero-initialized (the CPU and the
+    //> bootloader only ever read words they wrote first, but the C
+    //> runtime reads .bss before zeroing it, so never-written words
+    //> must read 0, not simulator garbage).
+    @image("images/ram_zero.bin")
     memory mem[16384] : Word[32] {
         if {
             when write {
