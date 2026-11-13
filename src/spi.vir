@@ -1,9 +1,9 @@
+//! SPI flash controller.
+//!
+//! This package provides an SPI master that reads from a SPI NOR flash
+//! using the standard 0x03 (READ) command, and a Spi socket definition.
 import wishbone
 
-//> SPI flash controller.
-//>
-//> This package provides an SPI master that reads from a SPI NOR flash
-//> using the standard 0x03 (READ) command, and a Spi socket definition.
 
 //> SPI flash controller FSM state.
 enum type State {

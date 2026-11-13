@@ -17,11 +17,21 @@ pub socket Wishbone {
     cosi sel : Word[4]
 
     //> Acknowledge: the slave asserts this when the transfer is complete.
-    soci ack : Bit
+    //>
+    //> May depend on any master signal: different slaves qualify ack with
+    //> different combinations of cyc/stb/we/adr (e.g. a memory acks on stb
+    //> alone, a FSM slave on adr as it matches the request).
+    soci ack : Bit dependson cyc, stb, we, adr
     //> Error: the slave asserts this on an error.
-    soci err : Bit
+    //>
+    //> Decoding errors are qualified by the request signals, including sel
+    //> (a slave may flag unsupported byte lanes).
+    soci err : Bit dependson cyc, stb, we, adr, sel
     //> Read data.
-    soci dat_rd : Word[32]
+    //>
+    //> Read data is a function of the address and whether a read is being
+    //> requested at all (cyc/stb/we).
+    soci dat_rd : Word[32] dependson cyc, stb, we, adr
 }
 
 //> Arbiter state: which master is being served by an arbiter.

@@ -1,8 +1,10 @@
-//> Instruction decode module.
-//>
-//> Decodes a 32-bit RISC-V instruction into opcode, register indices,
-//> function fields, and the immediate value (sign-extended or zero-extended
-//> as appropriate for each instruction format).
+//! Instruction decode module.
+//!
+//! Decodes a 32-bit RISC-V instruction into opcode, register indices,
+//! function fields, and the immediate value (sign-extended or zero-extended
+//! as appropriate for each instruction format).
+
+import opcode
 
 pub mod IDecode {
     //> The 32-bit instruction word fetched from memory.
@@ -75,7 +77,7 @@ pub mod IDecode {
     }
 
     //> Whether the opcode is illegal (not a recognized RISC-V primary opcode).
-    // Unused — kept for documentation / future exception support.
+    //> Unused — kept for documentation / future exception support.
     outgoing illegal_opcode : Bit dependson instr {
         it := match opcode_bits {
             with 99 => false

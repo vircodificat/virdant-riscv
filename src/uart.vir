@@ -1,3 +1,33 @@
+//! UART transmitter (UartSender) and receiver (UartReceiver) at 115200 baud
+//! on the 1 MHz `virt::Virt` clock.
+//!
+//! 1e6 / 115200 = 625/72 ≈ 8.68 cycles per bit, which is not an integer, so
+//! a fixed divisor would be off by 4-8%.  Instead each module keeps a
+//! phase accumulator `acc` (in units of 1/72 cycle): every cycle it adds
+//! 72, and whenever it would reach 625 a bit `tick` fires and 625 is
+//! subtracted.  Bit boundaries thus land within one cycle of their ideal
+//! positions with no accumulated drift.  The receiver re-syncs its phase on
+//! every start-bit edge.
+//!
+//! Both modules use compact encoded-state machines and shift registers
+//! to minimise hardware area.
+//!
+//! # UartSender
+//!
+//! - `clock`      : driving clock (1 MHz)
+//! - `reset`      : synchronous reset
+//! - `data`       : byte to transmit (sampled when `data_valid` is high)
+//! - `data_valid` : strobe that loads `data`
+//! - `ready`      : high when idle (accepting new data)
+//! - `uart_tx`    : serial output (idle high, start low, 8 data LSB-first, stop high)
+//!
+//! # UartReceiver
+//!
+//! - `clock`      : driving clock (1 MHz)
+//! - `reset`      : synchronous reset
+//! - `uart_rx`    : serial input
+//! - `data`       : received byte
+//! - `data_valid` : high for one cycle when `data` is valid
 import wishbone
 
 socket Uart {
@@ -65,36 +95,6 @@ pub mod WbUart {
     }
 }
 
-//> UART transmitter (UartSender) and receiver (UartReceiver) at 115200 baud
-//> on the 1 MHz `virt::Virt` clock.
-//>
-//> 1e6 / 115200 = 625/72 ≈ 8.68 cycles per bit, which is not an integer, so
-//> a fixed divisor would be off by 4-8%.  Instead each module keeps a
-//> phase accumulator `acc` (in units of 1/72 cycle): every cycle it adds
-//> 72, and whenever it would reach 625 a bit `tick` fires and 625 is
-//> subtracted.  Bit boundaries thus land within one cycle of their ideal
-//> positions with no accumulated drift.  The receiver re-syncs its phase on
-//> every start-bit edge.
-//>
-//> Both modules use compact encoded-state machines and shift registers
-//> to minimise hardware area.
-//>
-//> # UartSender
-//>
-//> - `clock`      : driving clock (1 MHz)
-//> - `reset`      : synchronous reset
-//> - `data`       : byte to transmit (sampled when `data_valid` is high)
-//> - `data_valid` : strobe that loads `data`
-//> - `ready`      : high when idle (accepting new data)
-//> - `uart_tx`    : serial output (idle high, start low, 8 data LSB-first, stop high)
-//>
-//> # UartReceiver
-//>
-//> - `clock`      : driving clock (1 MHz)
-//> - `reset`      : synchronous reset
-//> - `uart_rx`    : serial input
-//> - `data`       : received byte
-//> - `data_valid` : high for one cycle when `data` is valid
 
 //> FSM states shared by UartSender and UartReceiver.
 enum type UartFsmState {

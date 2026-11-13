@@ -5,6 +5,8 @@ import alu
 import control
 import idecode
 import wishbone
+import opcode
+import mem
 
 pub enum type Halt {
     Fault

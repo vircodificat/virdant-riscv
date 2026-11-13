@@ -1,8 +1,10 @@
-//> ALU and barrel shifter modules.
-//>
-//> This package provides the main arithmetic-logic unit (Alu) that
-//> executes all RV32I ALU operations, and a 32-bit barrel shifter (Shifter)
-//> that handles SLL, SRL, and SRA in a single cycle.
+//! ALU and barrel shifter modules.
+//!
+//! This package provides the main arithmetic-logic unit (Alu) that
+//! executes all RV32I ALU operations, and a 32-bit barrel shifter (Shifter)
+//! that handles SLL, SRL, and SRA in a single cycle.
+
+import opcode
 
 //> ALU module.
 //>
